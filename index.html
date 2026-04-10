@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>CashClock</title>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #111827;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+      #splash.hide {
+        opacity: 0;
+        visibility: hidden;
+      }
+      #splash .logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        animation: pulse-logo 1.5s ease-in-out infinite;
+      }
+      #splash .logo svg {
+        width: 44px;
+        height: 44px;
+        color: white;
+      }
+      #splash .app-name {
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: white;
+        letter-spacing: -0.5px;
+        margin-bottom: 8px;
+      }
+      #splash .tagline {
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        color: #9ca3af;
+      }
+      #splash .loader {
+        margin-top: 40px;
+        width: 40px;
+        height: 4px;
+        border-radius: 2px;
+        background: #1f2937;
+        overflow: hidden;
+      }
+      #splash .loader::after {
+        content: '';
+        display: block;
+        width: 50%;
+        height: 100%;
+        border-radius: 2px;
+        background: #10b981;
+        animation: slide 1s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% { transform: translateX(-100%); }
+        50% { transform: translateX(150%); }
+        100% { transform: translateX(-100%); }
+      }
+      @keyframes pulse-logo {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-100">
+    <!-- Splash Screen -->
+    <div id="splash">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+        </svg>
+      </div>
+      <div class="app-name">CashClock</div>
+      <div class="tagline">Freelance Time & Earning Tracker</div>
+      <div class="loader"></div>
+    </div>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
