@@ -1,4 +1,6 @@
-import { useRateStore, useTargetStore } from '../store';
+import { useState } from 'react';
+import { useRateStore, useTargetStore, useLogStore } from '../store';
+import { groupLogsByWeek, calculateEarnings, formatCurrency } from '../utils';
 
 function formatRupiahInput(value: string): string {
   const digits = value.replace(/\D/g, '');
@@ -19,6 +21,47 @@ export default function Settings() {
   const setExchangeRate = useRateStore((s) => s.setExchangeRate);
   const weeklyTarget = useTargetStore((s) => s.weeklyTarget);
   const setWeeklyTarget = useTargetStore((s) => s.setWeeklyTarget);
+
+  const logs = useLogStore((s) => s.logs);
+  const removeLogs = useLogStore((s) => s.removeLogs);
+  const [confirmDelete, setConfirmDelete] = useState<'balance' | 'pending' | 'all' | null>(null);
+
+  const weekGroups = groupLogsByWeek(logs);
+  const clearedGroups = weekGroups.filter((g) => g.status === 'cleared');
+  const pendingGroups = weekGroups.filter((g) => g.status === 'pending');
+
+  const totalCleared = clearedGroups.reduce(
+    (sum, g) => sum + calculateEarnings(g.totalHours, rate).net, 0
+  );
+  const totalPending = pendingGroups.reduce(
+    (sum, g) => sum + calculateEarnings(g.totalHours, rate).net, 0
+  );
+
+  const handleDelete = () => {
+    if (!confirmDelete) return;
+    let ids: string[] = [];
+    if (confirmDelete === 'balance') {
+      ids = clearedGroups.flatMap((g) => g.logs.map((l) => l.id));
+    } else if (confirmDelete === 'pending') {
+      ids = pendingGroups.flatMap((g) => g.logs.map((l) => l.id));
+    } else if (confirmDelete === 'all') {
+      ids = [...clearedGroups, ...pendingGroups].flatMap((g) => g.logs.map((l) => l.id));
+    }
+    removeLogs(ids);
+    setConfirmDelete(null);
+  };
+
+  const deleteLabel = confirmDelete === 'balance'
+    ? 'Saldo Tersedia'
+    : confirmDelete === 'pending'
+    ? 'Saldo Pending'
+    : 'Semua Saldo';
+
+  const deleteAmount = confirmDelete === 'balance'
+    ? totalCleared
+    : confirmDelete === 'pending'
+    ? totalPending
+    : totalCleared + totalPending;
 
   return (
     <div className="space-y-5">
@@ -110,6 +153,92 @@ export default function Settings() {
           </p>
         </div>
       </div>
+
+      {/* Danger Zone */}
+      <div className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-red-400">
+          Hapus Data Saldo
+        </h2>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white font-medium">Saldo Tersedia</p>
+            <p className="text-xs text-gray-500">
+              {clearedGroups.length} minggu · {formatCurrency(totalCleared, 'USD')}
+            </p>
+          </div>
+          <button
+            onClick={() => setConfirmDelete('balance')}
+            disabled={clearedGroups.length === 0}
+            className="rounded-xl bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Hapus
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white font-medium">Saldo Pending</p>
+            <p className="text-xs text-gray-500">
+              {pendingGroups.length} minggu · {formatCurrency(totalPending, 'USD')}
+            </p>
+          </div>
+          <button
+            onClick={() => setConfirmDelete('pending')}
+            disabled={pendingGroups.length === 0}
+            className="rounded-xl bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Hapus
+          </button>
+        </div>
+
+        <div className="border-t border-gray-700 pt-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-white font-medium">Hapus Semua Saldo</p>
+            <p className="text-xs text-gray-500">
+              Hapus saldo tersedia & pending sekaligus
+            </p>
+          </div>
+          <button
+            onClick={() => setConfirmDelete('all')}
+            disabled={clearedGroups.length === 0 && pendingGroups.length === 0}
+            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Hapus Semua
+          </button>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-white mb-2">
+              Hapus {deleteLabel}?
+            </h3>
+            <p className="text-sm text-gray-400 mb-1">
+              Semua log dari minggu terkait akan dihapus permanen dan tidak bisa dikembalikan.
+            </p>
+            <p className="text-sm font-semibold text-red-400 mb-5">
+              {formatCurrency(deleteAmount, 'USD')} akan dihapus.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition-colors"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info notice */}
       <div className="rounded-2xl bg-emerald-500/10 p-4 text-sm text-emerald-300">

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNeedsStore, useRateStore, useLogStore } from '../store';
+import { useNeedsStore, useRateStore, useLogStore, useBalanceStore } from '../store';
 import { calculateEarnings, formatCurrency, generateId, groupLogsByWeek } from '../utils';
 import type { NeedsItem } from '../types';
 
@@ -35,6 +35,7 @@ export default function NeedsPage() {
   const rate = useRateStore((s) => s.rate);
   const exchangeRate = useRateStore((s) => s.exchangeRate);
   const logs = useLogStore((s) => s.logs);
+  const manualBalance = useBalanceStore((s) => s.manualBalance);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -66,7 +67,7 @@ export default function NeedsPage() {
     [needs, exchangeRate],
   );
 
-  const freeBalanceUSD = totalBalanceUSD - totalAllocatedUSD;
+  const freeBalanceUSD = totalBalanceUSD + manualBalance - totalAllocatedUSD;
 
   const sortedNeeds = useMemo(
     () => [...needs].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]),

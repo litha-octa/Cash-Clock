@@ -7,6 +7,7 @@ interface LogState {
   addLog: (log: LogEntry) => void
   updateLog: (id: string, data: Partial<LogEntry>) => void
   removeLog: (id: string) => void
+  removeLogs: (ids: string[]) => void
 }
 
 export const useLogStore = create<LogState>()(
@@ -19,6 +20,7 @@ export const useLogStore = create<LogState>()(
           logs: s.logs.map((l) => (l.id === id ? { ...l, ...data } : l)),
         })),
       removeLog: (id) => set((s) => ({ logs: s.logs.filter((l) => l.id !== id) })),
+      removeLogs: (ids) => set((s) => ({ logs: s.logs.filter((l) => !ids.includes(l.id)) })),
     }),
     { name: 'logtime_entries' }
   )
@@ -59,6 +61,21 @@ export const useTargetStore = create<TargetState>()(
       setWeeklyTarget: (weeklyTarget) => set({ weeklyTarget }),
     }),
     { name: 'logtime_weekly_target' }
+  )
+)
+
+interface BalanceState {
+  manualBalance: number
+  setManualBalance: (amount: number) => void
+}
+
+export const useBalanceStore = create<BalanceState>()(
+  persist(
+    (set) => ({
+      manualBalance: 0,
+      setManualBalance: (manualBalance) => set({ manualBalance }),
+    }),
+    { name: 'logtime_balance' }
   )
 )
 
