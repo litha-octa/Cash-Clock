@@ -145,7 +145,7 @@ export default function Dashboard() {
   const handleSaveBalance = () => {
     const desired = parseFloat(editBalanceValue);
     if (isNaN(desired) || desired < 0) return;
-    const calculatedFree = totalClearedBalance - totalAllocatedUSD;
+    const calculatedFree = totalClearedBalance - totalPocketSaldoUSD;
     setManualBalance(desired - calculatedFree);
     setEditingBalance(false);
   };
