@@ -129,7 +129,12 @@ export const usePocketStore = create<PocketState>()(
             if (p.id !== id) return p
             const newSaldo = Math.max(0, p.saldo - amount)
             if (p.tipe === 'goal' && p.target_amount != null) {
-              return { ...p, saldo: newSaldo, target_amount: p.target_amount - amount }
+              return {
+                ...p,
+                saldo: newSaldo,
+                target_amount: p.target_amount - amount,
+                target_awal: Math.max(0, (p.target_awal ?? 0) - amount),
+              }
             }
             return { ...p, saldo: newSaldo }
           }),

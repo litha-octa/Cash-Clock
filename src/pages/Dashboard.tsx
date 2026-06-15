@@ -187,7 +187,7 @@ export default function Dashboard() {
         ))}
       </div>
       {/* Balance & Pending */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
         <div className="rounded-2xl bg-gray-800 p-4 shadow-lg">
           <div className="flex items-start justify-between mb-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -216,17 +216,21 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <p className="text-xl font-bold text-emerald-400">
-            {formatCurrency(Math.max(0, freeBalance), "USD")}
-          </p>
-          <p className="text-sm text-emerald-400/60 font-medium">
-            {formatCurrency(Math.max(0, freeBalance) * exchangeRate, "IDR")}
-          </p>
-          {totalPocketSaldoUSD > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(totalPocketSaldoUSD, "USD")} di kantong
-            </p>
-          )}
+          <div className="flex items-baseline justify-between">
+            <div>
+              <p className="text-xl font-bold text-emerald-400">
+                {formatCurrency(Math.max(0, freeBalance), "USD")}
+              </p>
+              <p className="text-sm text-emerald-400/60 font-medium">
+                {formatCurrency(Math.max(0, freeBalance) * exchangeRate, "IDR")}
+              </p>
+            </div>
+            {totalPocketSaldoUSD > 0 && (
+              <p className="text-xs text-gray-500">
+                {formatCurrency(totalPocketSaldoUSD, "USD")} di kantong
+              </p>
+            )}
+          </div>
         </div>
         <div className="rounded-2xl bg-gray-800 p-4 shadow-lg">
           <div className="flex items-start justify-between mb-1">
@@ -245,15 +249,19 @@ export default function Dashboard() {
               </button>
             )}
           </div>
-          <p className="text-xl font-bold text-yellow-400">
-            {formatCurrency(totalPending, "USD")}
-          </p>
-          <p className="text-sm text-yellow-400/60 font-medium">
-            {formatCurrency(totalPending * exchangeRate, "IDR")}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {pendingGroups.length} minggu pending
-          </p>
+          <div className="flex items-baseline justify-between">
+            <div>
+              <p className="text-xl font-bold text-yellow-400">
+                {formatCurrency(totalPending, "USD")}
+              </p>
+              <p className="text-sm text-yellow-400/60 font-medium">
+                {formatCurrency(totalPending * exchangeRate, "IDR")}
+              </p>
+            </div>
+            <p className="text-xs text-gray-500">
+              {pendingGroups.length} minggu pending
+            </p>
+          </div>
         </div>
       </div>
 
