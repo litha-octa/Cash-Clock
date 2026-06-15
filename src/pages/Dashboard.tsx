@@ -4,7 +4,7 @@ import {
   useLogStore,
   useRateStore,
   useTargetStore,
-  useNeedsStore,
+  usePocketStore,
   useBalanceStore,
 } from "../store";
 import {
@@ -35,7 +35,7 @@ export default function Dashboard() {
   const currency = useRateStore((s) => s.currency);
   const exchangeRate = useRateStore((s) => s.exchangeRate);
   const weeklyTarget = useTargetStore((s) => s.weeklyTarget);
-  const needs = useNeedsStore((s) => s.needs);
+  const pockets = usePocketStore((s) => s.pockets);
   const manualBalance = useBalanceStore((s) => s.manualBalance);
   const setManualBalance = useBalanceStore((s) => s.setManualBalance);
 
@@ -97,22 +97,21 @@ export default function Dashboard() {
     [clearedGroups, rate],
   );
 
-  // Total allocated to needs (converted to USD)
-  const totalAllocatedUSD = useMemo(
-    () => needs.reduce((sum, n) => {
-      const alloc = n.allocated || 0;
-      if ((n.currency || 'USD') === 'IDR') return sum + alloc / exchangeRate;
-      return sum + alloc;
+  // Total pocket saldo (converted to USD)
+  const totalPocketSaldoUSD = useMemo(
+    () => pockets.reduce((sum, p) => {
+      return sum + (p.currency === 'IDR' ? p.saldo / exchangeRate : p.saldo);
     }, 0),
-    [needs, exchangeRate],
+    [pockets, exchangeRate],
   );
 
-  const freeBalance = totalClearedBalance + manualBalance - totalAllocatedUSD;
+  const freeBalance = totalClearedBalance + manualBalance - totalPocketSaldoUSD;
 
-  // Needs overview
-  const needsFulfilled = useMemo(
-    () => needs.filter((n) => (n.allocated || 0) >= n.amount).length,
-    [needs],
+  // Pocket overview
+  const goalPockets = useMemo(() => pockets.filter((p) => p.tipe === 'goal'), [pockets]);
+  const goalReady = useMemo(
+    () => goalPockets.filter((p) => p.target_amount != null && p.saldo >= p.target_amount).length,
+    [goalPockets],
   );
 
   // Recent logs (5 most recent)
@@ -223,9 +222,9 @@ export default function Dashboard() {
           <p className="text-sm text-emerald-400/60 font-medium">
             {formatCurrency(Math.max(0, freeBalance) * exchangeRate, "IDR")}
           </p>
-          {totalAllocatedUSD > 0 && (
+          {totalPocketSaldoUSD > 0 && (
             <p className="text-xs text-gray-500 mt-1">
-              {formatCurrency(totalAllocatedUSD, "USD")} di kantong
+              {formatCurrency(totalPocketSaldoUSD, "USD")} di kantong
             </p>
           )}
         </div>
@@ -380,7 +379,7 @@ export default function Dashboard() {
       )}
 
       {/* Kantong Overview */}
-      {needs.length > 0 && (
+      {pockets.length > 0 && (
         <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -393,16 +392,18 @@ export default function Dashboard() {
 
           <div className="flex justify-between text-gray-300">
             <span>Jumlah Kantong</span>
-            <span className="font-medium text-white">{needs.length}</span>
+            <span className="font-medium text-white">{pockets.length}</span>
           </div>
+          {goalPockets.length > 0 && (
+            <div className="mt-1 flex justify-between text-gray-300">
+              <span>Goal Siap Tarik</span>
+              <span className="font-medium text-emerald-400">{goalReady} / {goalPockets.length}</span>
+            </div>
+          )}
           <div className="mt-1 flex justify-between text-gray-300">
-            <span>Terpenuhi</span>
-            <span className="font-medium text-emerald-400">{needsFulfilled} / {needs.length}</span>
-          </div>
-          <div className="mt-1 flex justify-between text-gray-300">
-            <span>Dialokasikan</span>
+            <span>Total di Kantong</span>
             <span className="font-medium text-white">
-              {formatCurrency(totalAllocatedUSD, "USD")}
+              {formatCurrency(totalPocketSaldoUSD, "USD")}
             </span>
           </div>
         </div>

@@ -7,27 +7,29 @@ export interface LogEntry {
 }
 
 export interface PendingAllocation {
-  amount: number        // in the need's currency
+  amount: number        // in the pocket's currency
   clearDate: string     // ISO date when this becomes withdrawable
 }
 
-export interface NeedsItem {
+export interface Pocket {
   id: string
-  name: string
-  amount: number        // target amount
-  allocated: number     // amount saved/allocated (in same currency as need)
-  pendingAllocations?: PendingAllocation[]  // allocations from pending balance (locked until clearDate)
+  nama: string
+  saldo: number
+  tipe: 'permanen' | 'goal'
+  target_amount?: number    // goal only: remaining target (decreases on withdraw)
+  target_awal?: number      // goal only: original target (static, for progress display)
   currency: 'USD' | 'IDR'
-  priority: 'high' | 'medium' | 'low'
+  pendingAllocations?: PendingAllocation[]
+  created_at: string
 }
 
 export type Period = 'today' | 'this_week' | 'all'
 
 export interface WeekGroup {
-  weekStart: string // Monday ISO date
-  weekEnd: string   // Sunday ISO date
-  cutoffDate: string // Sunday ISO date (cutoff night)
-  clearDate: string  // 10 days after cutoff
+  weekStart: string
+  weekEnd: string
+  cutoffDate: string
+  clearDate: string
   logs: LogEntry[]
   totalHours: number
   status: 'active' | 'pending' | 'cleared'

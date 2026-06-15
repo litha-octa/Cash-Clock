@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
-import { useNeedsStore, useRateStore, useLogStore, useBalanceStore } from '../store';
+import { useState, useMemo, useEffect } from 'react';
+import { usePocketStore, useRateStore, useLogStore, useBalanceStore } from '../store';
 import { calculateEarnings, formatCurrency, generateId, groupLogsByWeek, getLockedAmount, formatDateShort } from '../utils';
-import type { NeedsItem } from '../types';
+import type { Pocket } from '../types';
 
-type Priority = 'high' | 'medium' | 'low';
-type NeedCurrency = 'USD' | 'IDR';
+type PocketCurrency = 'USD' | 'IDR';
+type PocketType = 'permanen' | 'goal';
 
 function formatRupiahInput(value: string): string {
   const digits = value.replace(/\D/g, '');
@@ -16,22 +16,44 @@ function parseRupiahInput(formatted: string): number {
   return Number(formatted.replace(/\D/g, '')) || 0;
 }
 
-const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+function parseAmount(val: string, cur: PocketCurrency): number {
+  return cur === 'IDR' ? parseRupiahInput(val) : (parseFloat(val) || 0);
+}
 
-const priorityBadge: Record<Priority, { label: string; cls: string }> = {
-  high: { label: 'Tinggi', cls: 'bg-red-500/20 text-red-400' },
-  medium: { label: 'Sedang', cls: 'bg-yellow-500/20 text-yellow-400' },
-  low: { label: 'Rendah', cls: 'bg-blue-500/20 text-blue-400' },
+const typeBadge: Record<PocketType, { label: string; cls: string }> = {
+  permanen: { label: 'Permanen', cls: 'bg-blue-500/20 text-blue-400' },
+  goal: { label: 'Goal', cls: 'bg-purple-500/20 text-purple-400' },
 };
 
+// Reusable currency input
+function CurrencyInput({ value, onChange, currency, placeholder, autoFocus }: {
+  value: string; onChange: (v: string) => void; currency: PocketCurrency; placeholder?: string; autoFocus?: boolean;
+}) {
+  if (currency === 'IDR') {
+    return (
+      <input type="text" inputMode="numeric" value={value}
+        onChange={(e) => onChange(formatRupiahInput(e.target.value))}
+        placeholder={placeholder || '50.000'} autoFocus={autoFocus}
+        className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow" />
+    );
+  }
+  return (
+    <input type="number" min={0} step={0.01} value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder || '0.00'} autoFocus={autoFocus}
+      className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow" />
+  );
+}
+
 export default function NeedsPage() {
-  const needs = useNeedsStore((s) => s.needs);
-  const addNeed = useNeedsStore((s) => s.addNeed);
-  const updateNeed = useNeedsStore((s) => s.updateNeed);
-  const removeNeed = useNeedsStore((s) => s.removeNeed);
-  const allocate = useNeedsStore((s) => s.allocate);
-  const allocateFromPending = useNeedsStore((s) => s.allocateFromPending);
-  const withdraw = useNeedsStore((s) => s.withdraw);
+  const pockets = usePocketStore((s) => s.pockets);
+  const addPocket = usePocketStore((s) => s.addPocket);
+  const updatePocket = usePocketStore((s) => s.updatePocket);
+  const removePocket = usePocketStore((s) => s.removePocket);
+  const topUp = usePocketStore((s) => s.topUp);
+  const topUpFromPending = usePocketStore((s) => s.topUpFromPending);
+  const withdrawFromPocket = usePocketStore((s) => s.withdrawFromPocket);
+  const transferBetweenPockets = usePocketStore((s) => s.transferBetweenPockets);
 
   const rate = useRateStore((s) => s.rate);
   const exchangeRate = useRateStore((s) => s.exchangeRate);
@@ -39,34 +61,48 @@ export default function NeedsPage() {
   const manualBalance = useBalanceStore((s) => s.manualBalance);
   const setManualBalance = useBalanceStore((s) => s.setManualBalance);
 
+  // Form state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [needCurrency, setNeedCurrency] = useState<NeedCurrency>('IDR');
-  const [priority, setPriority] = useState<Priority>('medium');
+  const [nama, setNama] = useState('');
+  const [pocketType, setPocketType] = useState<PocketType>('permanen');
+  const [targetAmount, setTargetAmount] = useState('');
+  const [pocketCurrency, setPocketCurrency] = useState<PocketCurrency>('IDR');
 
-  // Allocate modal state
-  const [allocatingId, setAllocatingId] = useState<string | null>(null);
-  const [allocateAmount, setAllocateAmount] = useState('');
-  const [allocateMode, setAllocateMode] = useState<'add' | 'withdraw'>('add');
-  const [allocateSource, setAllocateSource] = useState<'balance' | 'pending'>('balance');
+  // Expanded card
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Top-up (Isi Saldo) modal
+  const [topUpId, setTopUpId] = useState<string | null>(null);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [topUpSource, setTopUpSource] = useState<'balance' | 'pending' | string>('balance');
   const [selectedPendingWeek, setSelectedPendingWeek] = useState<string | null>(null);
 
-  // Multi-withdraw state
-  const [withdrawMode, setWithdrawMode] = useState(false);
-  const [selectedWithdrawIds, setSelectedWithdrawIds] = useState<Set<string>>(new Set());
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  // Move (Pindahkan Saldo) modal
+  const [moveId, setMoveId] = useState<string | null>(null);
+  const [moveAmount, setMoveAmount] = useState('');
+  const [moveDest, setMoveDest] = useState<'balance' | string>('balance');
 
-  // Calculate total cleared balance (USD)
+  // Withdraw modal
+  const [withdrawId, setWithdrawId] = useState<string | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  // Goal completion toast
+  const [goalToast, setGoalToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (goalToast) {
+      const t = setTimeout(() => setGoalToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [goalToast]);
+
+  // Balance calculations
   const weekGroups = useMemo(() => groupLogsByWeek(logs), [logs]);
-  const totalBalanceUSD = useMemo(
-    () => weekGroups
-      .filter((g) => g.status === 'cleared')
+  const totalClearedUSD = useMemo(
+    () => weekGroups.filter((g) => g.status === 'cleared')
       .reduce((sum, g) => sum + calculateEarnings(g.totalHours, rate).net, 0),
     [weekGroups, rate],
   );
-
-  // Pending groups and total pending
   const pendingGroups = useMemo(
     () => weekGroups.filter((g) => g.status === 'pending'),
     [weekGroups],
@@ -75,244 +111,216 @@ export default function NeedsPage() {
     () => pendingGroups.reduce((sum, g) => sum + calculateEarnings(g.totalHours, rate).net, 0),
     [pendingGroups, rate],
   );
-
-  // Total allocated converted to USD
-  const totalAllocatedUSD = useMemo(
-    () => needs.reduce((sum, n) => {
-      const alloc = n.allocated || 0;
-      if ((n.currency || 'USD') === 'IDR') return sum + alloc / exchangeRate;
-      return sum + alloc;
-    }, 0),
-    [needs, exchangeRate],
+  const totalPocketSaldoUSD = useMemo(
+    () => pockets.reduce((sum, p) => sum + (p.currency === 'IDR' ? p.saldo / exchangeRate : p.saldo), 0),
+    [pockets, exchangeRate],
   );
-
-  // Total locked (pending allocations not yet cleared) in USD
   const totalLockedUSD = useMemo(
-    () => needs.reduce((sum, n) => {
-      const locked = getLockedAmount(n);
-      if ((n.currency || 'USD') === 'IDR') return sum + locked / exchangeRate;
-      return sum + locked;
+    () => pockets.reduce((sum, p) => {
+      const locked = getLockedAmount(p);
+      return sum + (p.currency === 'IDR' ? locked / exchangeRate : locked);
     }, 0),
-    [needs, exchangeRate],
+    [pockets, exchangeRate],
   );
 
-  const freeBalanceUSD = totalBalanceUSD + manualBalance - (totalAllocatedUSD - totalLockedUSD);
+  const freeBalanceUSD = totalClearedUSD + manualBalance - totalPocketSaldoUSD;
   const freePendingUSD = totalPendingUSD - totalLockedUSD;
 
-  const sortedNeeds = useMemo(
-    () => [...needs].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]),
-    [needs],
-  );
-
-  // Withdrawable needs (has unlocked allocated > 0)
-  const withdrawableNeeds = useMemo(
-    () => needs.filter((n) => {
-      const allocated = n.allocated || 0;
-      const locked = getLockedAmount(n);
-      return allocated - locked > 0;
-    }),
-    [needs],
-  );
-
-  // Multi-withdraw summary
-  const withdrawSummary = useMemo(() => {
-    const items: { need: NeedsItem; withdrawAmount: number; withdrawUSD: number }[] = [];
-    let totalUSD = 0;
-    for (const id of selectedWithdrawIds) {
-      const need = needs.find((n) => n.id === id);
-      if (!need) continue;
-      const allocated = need.allocated || 0;
-      const locked = getLockedAmount(need);
-      const withdrawable = Math.max(0, allocated - locked);
-      if (withdrawable <= 0) continue;
-      const cur = need.currency || 'USD';
-      const usd = cur === 'IDR' ? withdrawable / exchangeRate : withdrawable;
-      items.push({ need, withdrawAmount: withdrawable, withdrawUSD: usd });
-      totalUSD += usd;
-    }
-    return { items, totalUSD };
-  }, [selectedWithdrawIds, needs, exchangeRate]);
+  // Helpers
+  const toUSD = (amount: number, cur: PocketCurrency) => cur === 'IDR' ? amount / exchangeRate : amount;
+  const fromUSD = (usd: number, cur: PocketCurrency) => cur === 'IDR' ? usd * exchangeRate : usd;
 
   const resetForm = () => {
     setEditingId(null);
-    setName('');
-    setAmount('');
-    setNeedCurrency('IDR');
-    setPriority('medium');
+    setNama('');
+    setPocketType('permanen');
+    setTargetAmount('');
+    setPocketCurrency('IDR');
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (needCurrency === 'IDR') {
-      setAmount(formatRupiahInput(e.target.value));
-    } else {
-      setAmount(e.target.value);
-    }
+  const handleCurrencySwitch = (cur: PocketCurrency) => {
+    if (cur === pocketCurrency) return;
+    setPocketCurrency(cur);
+    setTargetAmount('');
   };
 
-  const handleCurrencySwitch = (cur: NeedCurrency) => {
-    if (cur === needCurrency) return;
-    setNeedCurrency(cur);
-    setAmount('');
-  };
-
-  const getAmountValue = (): number => {
-    if (needCurrency === 'IDR') return parseRupiahInput(amount);
-    return parseFloat(amount) || 0;
-  };
-
+  // --- Form submit ---
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = getAmountValue();
-    if (!name.trim() || parsedAmount <= 0) return;
-
-    if (editingId) {
-      updateNeed(editingId, {
-        name: name.trim(),
-        amount: parsedAmount,
-        currency: needCurrency,
-        priority,
-      });
+    if (!nama.trim()) return;
+    if (pocketType === 'goal') {
+      const target = parseAmount(targetAmount, pocketCurrency);
+      if (target <= 0) return;
+      if (editingId) {
+        updatePocket(editingId, { nama: nama.trim(), currency: pocketCurrency, target_awal: target, target_amount: target });
+      } else {
+        addPocket({ id: generateId(), nama: nama.trim(), saldo: 0, tipe: 'goal', target_amount: target, target_awal: target, currency: pocketCurrency, created_at: new Date().toISOString() });
+      }
     } else {
-      addNeed({
-        id: generateId(),
-        name: name.trim(),
-        amount: parsedAmount,
-        allocated: 0,
-        currency: needCurrency,
-        priority,
-      });
+      if (editingId) {
+        updatePocket(editingId, { nama: nama.trim(), currency: pocketCurrency });
+      } else {
+        addPocket({ id: generateId(), nama: nama.trim(), saldo: 0, tipe: 'permanen', currency: pocketCurrency, created_at: new Date().toISOString() });
+      }
     }
-
     resetForm();
   };
 
-  const handleEdit = (need: NeedsItem) => {
-    const cur = need.currency || 'USD';
-    setEditingId(need.id);
-    setName(need.name);
-    setNeedCurrency(cur);
-    setAmount(
-      cur === 'IDR'
-        ? formatRupiahInput(need.amount.toString())
-        : need.amount.toString()
-    );
-    setPriority(need.priority);
+  const handleEdit = (pocket: Pocket) => {
+    setEditingId(pocket.id);
+    setNama(pocket.nama);
+    setPocketType(pocket.tipe);
+    setPocketCurrency(pocket.currency);
+    setTargetAmount(pocket.tipe === 'goal' && pocket.target_awal
+      ? (pocket.currency === 'IDR' ? formatRupiahInput(pocket.target_awal.toString()) : pocket.target_awal.toString())
+      : '');
+    setExpandedId(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = (id: string) => {
-    removeNeed(id);
-    if (editingId === id) resetForm();
+  const handleDelete = (pocket: Pocket) => {
+    removePocket(pocket.id);
+    if (editingId === pocket.id) resetForm();
+    setExpandedId(null);
   };
 
-  const openAllocate = (id: string, mode: 'add' | 'withdraw') => {
-    setAllocatingId(id);
-    setAllocateMode(mode);
-    setAllocateAmount('');
-    setAllocateSource('balance');
+  // --- Top-up (Isi Saldo) ---
+  const openTopUp = (id: string) => {
+    setTopUpId(id);
+    setTopUpAmount('');
+    setTopUpSource('balance');
     setSelectedPendingWeek(pendingGroups.length > 0 ? pendingGroups[0].weekStart : null);
+    setExpandedId(null);
   };
 
-  const handleAllocateSubmit = () => {
-    if (!allocatingId) return;
-    const need = needs.find((n) => n.id === allocatingId);
-    if (!need) return;
+  const topUpPocket = topUpId ? pockets.find((p) => p.id === topUpId) : null;
 
-    const cur = need.currency || 'USD';
-    let val: number;
-    if (cur === 'IDR') {
-      val = parseRupiahInput(allocateAmount);
-    } else {
-      val = parseFloat(allocateAmount) || 0;
-    }
+  const handleTopUp = () => {
+    if (!topUpId || !topUpPocket) return;
+    const val = parseAmount(topUpAmount, topUpPocket.currency);
     if (val <= 0) return;
+    const costUSD = toUSD(val, topUpPocket.currency);
 
-    if (allocateMode === 'add') {
-      const costUSD = cur === 'IDR' ? val / exchangeRate : val;
+    if (topUpSource === 'balance') {
+      if (costUSD > freeBalanceUSD + 0.001) return;
+      topUp(topUpId, val);
+    } else if (topUpSource === 'pending') {
+      if (costUSD > freePendingUSD + 0.001) return;
+      const group = pendingGroups.find((g) => g.weekStart === selectedPendingWeek);
+      if (!group) return;
+      if (costUSD > calculateEarnings(group.totalHours, rate).net + 0.001) return;
+      topUpFromPending(topUpId, val, group.clearDate);
+    } else {
+      // Source is another pocket
+      const src = pockets.find((p) => p.id === topUpSource);
+      if (!src) return;
+      const locked = getLockedAmount(src);
+      const srcAvail = src.saldo - locked;
+      // Convert amount: user enters in destination pocket currency → convert to source currency
+      const srcDeduct = src.currency === topUpPocket.currency
+        ? val
+        : fromUSD(costUSD, src.currency);
+      if (srcDeduct > srcAvail + 0.001) return;
+      transferBetweenPockets(src.id, topUpId, srcDeduct, val);
+    }
+    setTopUpId(null);
+  };
 
-      if (allocateSource === 'pending') {
-        if (costUSD > freePendingUSD + 0.001) return;
-        const group = pendingGroups.find((g) => g.weekStart === selectedPendingWeek);
-        if (!group) return;
-        const groupAvailUSD = calculateEarnings(group.totalHours, rate).net;
-        if (costUSD > groupAvailUSD + 0.001) return;
-        allocateFromPending(allocatingId, val, group.clearDate);
-      } else {
-        if (costUSD > freeBalanceUSD + 0.001) return;
-        allocate(allocatingId, val);
+  // Available balance for the selected top-up source
+  const topUpSourceAvail = useMemo(() => {
+    if (!topUpPocket) return 0;
+    if (topUpSource === 'balance') return Math.max(0, freeBalanceUSD);
+    if (topUpSource === 'pending') return Math.max(0, freePendingUSD);
+    const src = pockets.find((p) => p.id === topUpSource);
+    if (!src) return 0;
+    const locked = getLockedAmount(src);
+    return toUSD(Math.max(0, src.saldo - locked), src.currency);
+  }, [topUpSource, topUpPocket, freeBalanceUSD, freePendingUSD, pockets, exchangeRate]);
+
+  // --- Move (Pindahkan Saldo) ---
+  const openMove = (id: string) => {
+    setMoveId(id);
+    setMoveAmount('');
+    setMoveDest('balance');
+    setExpandedId(null);
+  };
+
+  const movePocket = moveId ? pockets.find((p) => p.id === moveId) : null;
+
+  const handleMove = () => {
+    if (!moveId || !movePocket) return;
+    const val = parseAmount(moveAmount, movePocket.currency);
+    if (val <= 0) return;
+    const locked = getLockedAmount(movePocket);
+    if (val > movePocket.saldo - locked + 0.001) return;
+
+    if (moveDest === 'balance') {
+      // Move to pool: just withdraw from pocket
+      withdrawFromPocket(moveId, val);
+    } else {
+      // Move to another pocket
+      const dest = pockets.find((p) => p.id === moveDest);
+      if (!dest) return;
+      const destAdd = dest.currency === movePocket.currency
+        ? val
+        : fromUSD(toUSD(val, movePocket.currency), dest.currency);
+      transferBetweenPockets(moveId, dest.id, val, destAdd);
+    }
+    setMoveId(null);
+  };
+
+  // --- Withdraw (Tarik Saldo) ---
+  const openWithdraw = (id: string) => {
+    setWithdrawId(id);
+    setWithdrawAmount('');
+    setExpandedId(null);
+  };
+
+  const withdrawPocket = withdrawId ? pockets.find((p) => p.id === withdrawId) : null;
+
+  const handleWithdraw = () => {
+    if (!withdrawId) return;
+    const pocket = pockets.find((p) => p.id === withdrawId);
+    if (!pocket) return;
+    const val = parseAmount(withdrawAmount, pocket.currency);
+    if (val <= 0) return;
+    const locked = getLockedAmount(pocket);
+    const actual = Math.min(val, Math.max(0, pocket.saldo - locked));
+    if (actual <= 0) return;
+
+    withdrawFromPocket(withdrawId, actual);
+
+    if (pocket.tipe === 'goal' && pocket.target_amount != null) {
+      const newTarget = pocket.target_amount - actual;
+      if (newTarget <= 0) {
+        const spentUSD = toUSD(actual, pocket.currency);
+        setManualBalance(manualBalance - spentUSD);
+        setGoalToast(pocket.nama);
+        setTimeout(() => removePocket(withdrawId), 100);
       }
-    } else {
-      const allocated = need.allocated || 0;
-      const locked = getLockedAmount(need);
-      const withdrawable = allocated - locked;
-      withdraw(allocatingId, Math.min(val, Math.max(0, withdrawable)));
     }
-
-    setAllocatingId(null);
-    setAllocateAmount('');
+    setWithdrawId(null);
   };
 
-  // Toggle multi-withdraw mode
-  const toggleWithdrawMode = () => {
-    if (withdrawMode) {
-      setWithdrawMode(false);
-      setSelectedWithdrawIds(new Set());
-    } else {
-      setWithdrawMode(true);
-      setSelectedWithdrawIds(new Set());
-    }
+  // --- Card expand toggle ---
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
   };
-
-  const toggleWithdrawSelect = (id: string) => {
-    setSelectedWithdrawIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllWithdrawable = () => {
-    if (selectedWithdrawIds.size === withdrawableNeeds.length) {
-      setSelectedWithdrawIds(new Set());
-    } else {
-      setSelectedWithdrawIds(new Set(withdrawableNeeds.map((n) => n.id)));
-    }
-  };
-
-  const handleMultiWithdraw = () => {
-    for (const item of withdrawSummary.items) {
-      withdraw(item.need.id, item.withdrawAmount);
-    }
-    setManualBalance(manualBalance - withdrawSummary.totalUSD);
-    setShowWithdrawConfirm(false);
-    setWithdrawMode(false);
-    setSelectedWithdrawIds(new Set());
-  };
-
-  const allocatingNeed = allocatingId ? needs.find((n) => n.id === allocatingId) : null;
-  const allocatingCur = allocatingNeed?.currency || 'USD';
-
-  // Summary
-  const summaryUSD = useMemo(() => {
-    const items = needs.filter((n) => (n.currency || 'USD') === 'USD');
-    const target = items.reduce((s, n) => s + n.amount, 0);
-    const alloc = items.reduce((s, n) => s + (n.allocated || 0), 0);
-    return { target, allocated: alloc };
-  }, [needs]);
-
-  const summaryIDR = useMemo(() => {
-    const items = needs.filter((n) => n.currency === 'IDR');
-    const target = items.reduce((s, n) => s + n.amount, 0);
-    const alloc = items.reduce((s, n) => s + (n.allocated || 0), 0);
-    return { target, allocated: alloc };
-  }, [needs]);
 
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-white">
-        {editingId ? 'Edit Kantong' : 'Kantong Kebutuhan'}
+        {editingId ? 'Edit Kantong' : 'Kantong'}
       </h1>
+
+      {/* Goal Toast */}
+      {goalToast && (
+        <div className="fixed top-4 left-4 right-4 z-[60] mx-auto max-w-lg animate-pulse rounded-2xl bg-emerald-500 p-4 text-center shadow-xl">
+          <p className="text-lg font-bold text-white">
+            Goal &lsquo;{goalToast}&rsquo; tercapai!
+          </p>
+        </div>
+      )}
 
       {/* Balance Cards */}
       <div className="grid grid-cols-2 gap-3">
@@ -332,569 +340,371 @@ export default function NeedsPage() {
         </div>
       </div>
 
-      {/* Withdraw Button */}
-      {withdrawableNeeds.length > 0 && (
-        <button
-          onClick={toggleWithdrawMode}
-          className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold transition-colors ${
-            withdrawMode
-              ? 'bg-gray-700 border border-gray-600 text-gray-300'
-              : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-          }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-          </svg>
-          {withdrawMode ? 'Batal Tarik Saldo' : 'Tarik Saldo dari Kantong'}
-        </button>
-      )}
-
-      {/* Withdraw selection bar */}
-      {withdrawMode && (
-        <div className="rounded-2xl bg-gray-800 p-4 shadow-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-white">
-              Pilih kantong untuk ditarik ({selectedWithdrawIds.size} dipilih)
-            </p>
-            <button
-              onClick={selectAllWithdrawable}
-              className="text-xs text-emerald-400 hover:text-emerald-300"
-            >
-              {selectedWithdrawIds.size === withdrawableNeeds.length ? 'Batal Semua' : 'Pilih Semua'}
-            </button>
-          </div>
-
-          <ul className="space-y-2">
-            {withdrawableNeeds.map((need) => {
-              const cur = need.currency || 'USD';
-              const allocated = need.allocated || 0;
-              const locked = getLockedAmount(need);
-              const withdrawable = Math.max(0, allocated - locked);
-              const isSelected = selectedWithdrawIds.has(need.id);
-
-              return (
-                <li
-                  key={need.id}
-                  onClick={() => toggleWithdrawSelect(need.id)}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30'
-                      : 'bg-gray-900/50 hover:bg-gray-900/80'
-                  }`}
-                >
-                  <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                    isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-gray-600'
-                  }`}>
-                    {isSelected && (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{need.name}</p>
-                    {locked > 0 && (
-                      <p className="text-xs text-yellow-400/70">
-                        {formatCurrency(locked, cur)} terkunci
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-emerald-400">{formatCurrency(withdrawable, cur)}</p>
-                    {cur === 'IDR' && (
-                      <p className="text-xs text-gray-500">{formatCurrency(withdrawable / exchangeRate, 'USD')}</p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-
-          {selectedWithdrawIds.size > 0 && (
-            <button
-              onClick={() => setShowWithdrawConfirm(true)}
-              className="w-full rounded-xl bg-emerald-500 py-2.5 font-semibold text-white hover:bg-emerald-600 transition-colors"
-            >
-              Tarik {selectedWithdrawIds.size} Kantong
-            </button>
-          )}
+      {/* Create/Edit Form */}
+      <form onSubmit={handleSubmit} className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4">
+        <p className="text-sm font-medium text-gray-400">{editingId ? 'Edit kantong' : 'Buat kantong baru'}</p>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-400">Nama</label>
+          <input type="text" value={nama} onChange={(e) => setNama(e.target.value)}
+            placeholder="Contoh: Belanja bulanan"
+            className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow" />
         </div>
-      )}
 
-      {/* Form */}
-      {!withdrawMode && (
-        <form onSubmit={handleSubmit} className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4">
-          <p className="text-sm font-medium text-gray-400">{editingId ? 'Edit kantong' : 'Buat kantong baru'}</p>
+        {!editingId && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-400">Nama</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Bayar kost"
-              className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-            />
+            <label className="mb-1 block text-sm font-medium text-gray-400">Tipe Kantong</label>
+            <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden">
+              <button type="button" onClick={() => setPocketType('permanen')}
+                className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${pocketType === 'permanen' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}>
+                Permanen
+              </button>
+              <button type="button" onClick={() => setPocketType('goal')}
+                className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${pocketType === 'goal' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>
+                Goal
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-gray-600">
+              {pocketType === 'permanen' ? 'Untuk kebutuhan rutin. Tidak ada target.' : 'Untuk menabung ke target tertentu. Otomatis selesai saat target tercapai.'}
+            </p>
           </div>
+        )}
 
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-400">Mata Uang</label>
+          <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden w-fit">
+            <button type="button" onClick={() => handleCurrencySwitch('IDR')}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors ${pocketCurrency === 'IDR' ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:text-white'}`}>Rp</button>
+            <button type="button" onClick={() => handleCurrencySwitch('USD')}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors ${pocketCurrency === 'USD' ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:text-white'}`}>$</button>
+          </div>
+        </div>
+
+        {pocketType === 'goal' && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-400">Target</label>
-            <div className="flex gap-2">
-              <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleCurrencySwitch('IDR')}
-                  className={`px-3 py-2.5 text-sm font-medium transition-colors ${
-                    needCurrency === 'IDR'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Rp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCurrencySwitch('USD')}
-                  className={`px-3 py-2.5 text-sm font-medium transition-colors ${
-                    needCurrency === 'USD'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  $
-                </button>
-              </div>
-              {needCurrency === 'IDR' ? (
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  placeholder="50.000"
-                  className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-                />
-              ) : (
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={amount}
-                  onChange={handleAmountChange}
-                  placeholder="0.00"
-                  className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-                />
-              )}
-            </div>
+            <CurrencyInput value={targetAmount} onChange={setTargetAmount} currency={pocketCurrency} placeholder={pocketCurrency === 'IDR' ? '5.000.000' : '0.00'} />
           </div>
+        )}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-400">Prioritas</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as Priority)}
-              className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-            >
-              <option value="high">Tinggi</option>
-              <option value="medium">Sedang</option>
-              <option value="low">Rendah</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 rounded-xl bg-emerald-500 py-2.5 font-semibold text-white hover:bg-emerald-600 transition-colors"
-            >
-              {editingId ? 'Simpan' : 'Buat Kantong'}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
-              >
-                Batal
-              </button>
-            )}
-          </div>
-        </form>
-      )}
-
-      {/* Needs / Kantong List */}
-      {!withdrawMode && (
-        <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Daftar Kantong ({sortedNeeds.length})
-          </h2>
-
-          {sortedNeeds.length === 0 ? (
-            <div className="rounded-2xl bg-gray-800 p-8 text-center shadow-lg">
-              <p className="text-gray-500">Belum ada kantong. Buat kantong pertamamu!</p>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {sortedNeeds.map((need) => {
-                const cur = need.currency || 'USD';
-                const allocated = need.allocated || 0;
-                const progress = need.amount > 0 ? (allocated / need.amount) * 100 : 0;
-                const isFull = allocated >= need.amount;
-
-                return (
-                  <li
-                    key={need.id}
-                    className={`rounded-2xl bg-gray-800 p-4 shadow-lg ${isFull ? 'ring-1 ring-emerald-500/30' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <p className={`font-medium ${isFull ? 'text-emerald-400' : 'text-white'}`}>
-                          {need.name}
-                        </p>
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                            priorityBadge[need.priority].cls
-                          }`}
-                        >
-                          {priorityBadge[need.priority].label}
-                        </span>
-                        {isFull && (
-                          <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                            Terpenuhi
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-gray-700">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${isFull ? 'bg-emerald-500' : 'bg-yellow-500'}`}
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className={`font-semibold ${isFull ? 'text-emerald-400' : 'text-white'}`}>
-                        {formatCurrency(allocated, cur)}
-                      </span>
-                      <span className="text-gray-400">
-                        / {formatCurrency(need.amount, cur)}
-                      </span>
-                    </div>
-
-                    {/* Locked indicator */}
-                    {(() => {
-                      const locked = getLockedAmount(need);
-                      if (locked <= 0) return null;
-                      const pa = (need.pendingAllocations || []).filter((p) => p.clearDate > new Date().toISOString().split('T')[0]);
-                      const nearestClear = pa.length > 0 ? pa.reduce((min, p) => p.clearDate < min ? p.clearDate : min, pa[0].clearDate) : '';
-                      return (
-                        <div className="flex items-center gap-1.5 mb-3 rounded-lg bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>{formatCurrency(locked, cur)} terkunci dari pending · cair {formatDateShort(nearestClear)}</span>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => openAllocate(need.id, 'add')}
-                        disabled={freeBalanceUSD <= 0 && freePendingUSD <= 0}
-                        className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        + Isi Saldo
-                      </button>
-                      <button
-                        onClick={() => handleEdit(need)}
-                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-600 transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(need.id)}
-                        className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+        <div className="flex gap-3">
+          <button type="submit" className="flex-1 rounded-xl bg-emerald-500 py-2.5 font-semibold text-white hover:bg-emerald-600 transition-colors">
+            {editingId ? 'Simpan' : 'Buat Kantong'}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors">Batal</button>
           )}
         </div>
-      )}
+      </form>
 
-      {/* Allocate Modal */}
-      {allocatingId && allocatingNeed && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setAllocatingId(null)}>
-          <div
-            className="w-full max-w-lg rounded-t-2xl bg-gray-800 p-5 pb-24 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-white">
-              {allocateMode === 'add' ? 'Isi Saldo' : 'Tarik Saldo'} — {allocatingNeed.name}
-            </h3>
+      {/* Pocket Grid */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          Daftar Kantong ({pockets.length})
+        </h2>
 
-            {allocateMode === 'add' && (
-              <>
-                {/* Source selector */}
-                <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setAllocateSource('balance')}
-                    className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                      allocateSource === 'balance'
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Saldo Tersedia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAllocateSource('pending')}
-                    disabled={pendingGroups.length === 0}
-                    className={`flex-1 px-3 py-2 text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                      allocateSource === 'pending'
-                        ? 'bg-yellow-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Saldo Pending
-                  </button>
-                </div>
+        {pockets.length === 0 ? (
+          <div className="rounded-2xl bg-gray-800 p-8 text-center shadow-lg">
+            <p className="text-gray-500">Belum ada kantong. Buat kantong pertamamu!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {pockets.map((pocket) => {
+              const locked = getLockedAmount(pocket);
+              const isGoal = pocket.tipe === 'goal';
+              const progress = isGoal && pocket.target_awal
+                ? ((pocket.target_awal - (pocket.target_amount || 0)) / pocket.target_awal) * 100
+                : 0;
+              const isGoalFull = isGoal && pocket.target_amount != null && pocket.saldo >= pocket.target_amount;
+              const isExpanded = expandedId === pocket.id;
 
-                {allocateSource === 'balance' ? (
-                  <p className="text-xs text-gray-400">
-                    Saldo tersedia: {formatCurrency(Math.max(0, freeBalanceUSD), 'USD')}
-                    {allocatingCur === 'IDR' && (
-                      <> ({formatCurrency(Math.max(0, freeBalanceUSD) * exchangeRate, 'IDR')})</>
-                    )}
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-xs text-gray-400">
-                      Total pending: {formatCurrency(Math.max(0, freePendingUSD), 'USD')}
-                      {allocatingCur === 'IDR' && (
-                        <> ({formatCurrency(Math.max(0, freePendingUSD) * exchangeRate, 'IDR')})</>
-                      )}
-                    </p>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Pilih minggu pending</label>
-                      <select
-                        value={selectedPendingWeek || ''}
-                        onChange={(e) => setSelectedPendingWeek(e.target.value)}
-                        className="w-full rounded-xl bg-gray-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-yellow-500 transition-shadow"
-                      >
-                        {pendingGroups.map((g) => {
-                          const ge = calculateEarnings(g.totalHours, rate).net;
-                          return (
-                            <option key={g.weekStart} value={g.weekStart}>
-                              {formatDateShort(g.weekStart)} - {formatDateShort(g.weekEnd)} · {formatCurrency(ge, 'USD')} · cair {formatDateShort(g.clearDate)}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                    <p className="text-xs text-yellow-400/80 flex items-center gap-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                      Saldo dari pending tidak bisa ditarik sampai masa pending berakhir
-                    </p>
-                  </>
-                )}
-              </>
-            )}
-            {allocateMode === 'withdraw' && (() => {
-              const locked = getLockedAmount(allocatingNeed);
-              const withdrawable = (allocatingNeed.allocated || 0) - locked;
               return (
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-400">
-                    Saldo kantong: {formatCurrency(allocatingNeed.allocated || 0, allocatingCur)}
-                  </p>
-                  {locked > 0 && (
-                    <p className="text-xs text-yellow-400/80">
-                      Terkunci (pending): {formatCurrency(locked, allocatingCur)}
+                <div
+                  key={pocket.id}
+                  className={`rounded-2xl bg-gray-800 shadow-lg transition-all ${isGoalFull ? 'ring-1 ring-emerald-500/30' : ''} ${isExpanded ? 'col-span-2' : ''}`}
+                >
+                  {/* Card body - clickable */}
+                  <div
+                    className="p-4 cursor-pointer"
+                    onClick={() => toggleExpand(pocket.id)}
+                  >
+                    {/* Type badge */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${typeBadge[pocket.tipe].cls}`}>
+                        {typeBadge[pocket.tipe].label}
+                      </span>
+                      {isGoalFull && (
+                        <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                          Siap Tarik
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Name */}
+                    <p className="font-medium text-white text-sm truncate mb-1">{pocket.nama}</p>
+
+                    {/* Saldo */}
+                    <p className="text-lg font-bold text-emerald-400 leading-tight">
+                      {formatCurrency(pocket.saldo, pocket.currency)}
                     </p>
+                    {pocket.currency === 'IDR' && (
+                      <p className="text-[10px] text-gray-500">{formatCurrency(pocket.saldo / exchangeRate, 'USD')}</p>
+                    )}
+
+                    {/* Goal progress bar */}
+                    {isGoal && pocket.target_awal != null && (
+                      <div className="mt-2">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-700">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${progress >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`}
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Sisa: {formatCurrency(Math.max(0, pocket.target_amount || 0), pocket.currency)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Locked indicator */}
+                    {locked > 0 && (
+                      <div className="flex items-center gap-1 mt-2 text-[10px] text-yellow-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>{formatCurrency(locked, pocket.currency)} terkunci</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expanded actions */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-0 border-t border-gray-700/50">
+                      <div className="grid grid-cols-2 gap-2 pt-3">
+                        <button onClick={() => openTopUp(pocket.id)}
+                          className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-400 hover:bg-emerald-500/30 transition-colors">
+                          Isi Saldo
+                        </button>
+                        <button onClick={() => openMove(pocket.id)}
+                          disabled={pocket.saldo - locked <= 0}
+                          className="rounded-lg bg-cyan-500/20 px-3 py-2 text-xs font-medium text-cyan-400 hover:bg-cyan-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          Pindahkan
+                        </button>
+                        <button onClick={() => openWithdraw(pocket.id)}
+                          disabled={pocket.saldo - locked <= 0}
+                          className="rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-medium text-yellow-400 hover:bg-yellow-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                          Tarik Saldo
+                        </button>
+                        <button onClick={() => handleEdit(pocket)}
+                          className="rounded-lg bg-gray-700 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-gray-600 transition-colors">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(pocket)}
+                          className="col-span-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors">
+                          Hapus Kantong
+                        </button>
+                      </div>
+                    </div>
                   )}
-                  <p className="text-xs text-emerald-400">
-                    Bisa ditarik: {formatCurrency(Math.max(0, withdrawable), allocatingCur)}
-                  </p>
                 </div>
               );
-            })()}
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ===== TOP-UP (ISI SALDO) MODAL ===== */}
+      {topUpId && topUpPocket && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setTopUpId(null)}>
+          <div className="w-full max-w-lg rounded-t-2xl bg-gray-800 p-5 pb-24 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Isi Saldo — {topUpPocket.nama}</h3>
+
+            {/* Source selector */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Sumber</label>
+              <select
+                value={topUpSource}
+                onChange={(e) => setTopUpSource(e.target.value)}
+                className="w-full rounded-xl bg-gray-900 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
+              >
+                <option value="balance">Saldo Tersedia — {formatCurrency(Math.max(0, freeBalanceUSD), 'USD')}</option>
+                {pendingGroups.length > 0 && (
+                  <option value="pending">Saldo Pending — {formatCurrency(Math.max(0, freePendingUSD), 'USD')}</option>
+                )}
+                {pockets.filter((p) => p.id !== topUpId && p.saldo - getLockedAmount(p) > 0).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nama} — {formatCurrency(p.saldo - getLockedAmount(p), p.currency)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pending week selector */}
+            {topUpSource === 'pending' && (
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Pilih minggu pending</label>
+                  <select value={selectedPendingWeek || ''} onChange={(e) => setSelectedPendingWeek(e.target.value)}
+                    className="w-full rounded-xl bg-gray-900 px-3 py-2 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-yellow-500 transition-shadow">
+                    {pendingGroups.map((g) => {
+                      const ge = calculateEarnings(g.totalHours, rate).net;
+                      return (
+                        <option key={g.weekStart} value={g.weekStart}>
+                          {formatDateShort(g.weekStart)} - {formatDateShort(g.weekEnd)} · {formatCurrency(ge, 'USD')} · cair {formatDateShort(g.clearDate)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <p className="text-xs text-yellow-400/80 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                  Saldo dari pending tidak bisa ditarik sampai masa pending berakhir
+                </p>
+              </>
+            )}
+
+            <p className="text-xs text-gray-400">
+              Tersedia: {formatCurrency(topUpSourceAvail, 'USD')}
+              {topUpPocket.currency === 'IDR' && <> ({formatCurrency(topUpSourceAvail * exchangeRate, 'IDR')})</>}
+            </p>
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-400">
-                Jumlah ({allocatingCur === 'IDR' ? 'Rp' : '$'})
+                Jumlah ({topUpPocket.currency === 'IDR' ? 'Rp' : '$'})
               </label>
-              {allocatingCur === 'IDR' ? (
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={allocateAmount}
-                  onChange={(e) => setAllocateAmount(formatRupiahInput(e.target.value))}
-                  placeholder="50.000"
-                  autoFocus
-                  className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-                />
-              ) : (
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={allocateAmount}
-                  onChange={(e) => setAllocateAmount(e.target.value)}
-                  placeholder="0.00"
-                  autoFocus
-                  className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
-                />
-              )}
+              <CurrencyInput value={topUpAmount} onChange={setTopUpAmount} currency={topUpPocket.currency} autoFocus />
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={handleAllocateSubmit}
+              <button onClick={handleTopUp}
                 className={`flex-1 rounded-xl py-2.5 font-semibold text-white transition-colors ${
-                  allocateMode === 'add'
-                    ? allocateSource === 'pending'
-                      ? 'bg-yellow-500 hover:bg-yellow-600'
-                      : 'bg-emerald-500 hover:bg-emerald-600'
-                    : 'bg-yellow-500 hover:bg-yellow-600'
-                }`}
-              >
-                {allocateMode === 'add'
-                  ? allocateSource === 'pending' ? 'Isi dari Pending' : 'Isi Saldo'
-                  : 'Tarik Saldo'}
+                  topUpSource === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-emerald-500 hover:bg-emerald-600'
+                }`}>
+                {topUpSource === 'pending' ? 'Isi dari Pending' : 'Isi Saldo'}
               </button>
-              <button
-                onClick={() => setAllocatingId(null)}
-                className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
-              >
-                Batal
-              </button>
+              <button onClick={() => setTopUpId(null)} className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors">Batal</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Multi-Withdraw Confirmation Modal */}
-      {showWithdrawConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowWithdrawConfirm(false)}>
-          <div
-            className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-white mb-4">
-              Rincian Penarikan
-            </h3>
+      {/* ===== MOVE (PINDAHKAN SALDO) MODAL ===== */}
+      {moveId && movePocket && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setMoveId(null)}>
+          <div className="w-full max-w-lg rounded-t-2xl bg-gray-800 p-5 pb-24 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Pindahkan Saldo — {movePocket.nama}</h3>
 
-            <ul className="space-y-3 mb-4">
-              {withdrawSummary.items.map((item) => {
-                const cur = item.need.currency || 'USD';
-                return (
-                  <li key={item.need.id} className="rounded-xl bg-gray-900/50 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-white truncate">{item.need.name}</p>
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${priorityBadge[item.need.priority].cls}`}>
-                          {priorityBadge[item.need.priority].label}
-                        </span>
-                      </div>
-                      <div className="text-right shrink-0 ml-3">
-                        <p className="text-sm font-semibold text-emerald-400">
-                          {formatCurrency(item.withdrawAmount, cur)}
-                        </p>
-                        {cur === 'IDR' && (
-                          <p className="text-xs text-gray-500">
-                            {formatCurrency(item.withdrawUSD, 'USD')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <p className="text-xs text-gray-400">
+              Saldo: {formatCurrency(movePocket.saldo, movePocket.currency)}
+              {(() => {
+                const l = getLockedAmount(movePocket);
+                if (l <= 0) return null;
+                return <> · Bisa dipindah: {formatCurrency(movePocket.saldo - l, movePocket.currency)}</>;
+              })()}
+            </p>
 
-            {/* Total */}
-            <div className="border-t border-gray-700 pt-4 mb-5">
-              <div className="flex justify-between items-end">
-                <span className="text-sm text-gray-400">Total Penarikan</span>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-emerald-400">
-                    {formatCurrency(withdrawSummary.totalUSD, 'USD')}
-                  </p>
-                  <p className="text-sm text-emerald-400/60 font-medium">
-                    {formatCurrency(withdrawSummary.totalUSD * exchangeRate, 'IDR')}
-                  </p>
-                </div>
-              </div>
+            {/* Destination selector */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Tujuan</label>
+              <select
+                value={moveDest}
+                onChange={(e) => setMoveDest(e.target.value)}
+                className="w-full rounded-xl bg-gray-900 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-cyan-500 transition-shadow"
+              >
+                <option value="balance">Saldo Tersedia</option>
+                {pockets.filter((p) => p.id !== moveId).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nama} — {formatCurrency(p.saldo, p.currency)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-400">
+                Jumlah ({movePocket.currency === 'IDR' ? 'Rp' : '$'})
+              </label>
+              <CurrencyInput value={moveAmount} onChange={setMoveAmount} currency={movePocket.currency} autoFocus />
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowWithdrawConfirm(false)}
-                className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
-              >
-                Batal
+              <button onClick={handleMove}
+                className="flex-1 rounded-xl bg-cyan-500 py-2.5 font-semibold text-white hover:bg-cyan-600 transition-colors">
+                Pindahkan
               </button>
-              <button
-                onClick={handleMultiWithdraw}
-                className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
-              >
+              <button onClick={() => setMoveId(null)} className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors">Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== WITHDRAW (TARIK SALDO) MODAL ===== */}
+      {withdrawId && withdrawPocket && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setWithdrawId(null)}>
+          <div className="w-full max-w-lg rounded-t-2xl bg-gray-800 p-5 pb-24 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Tarik Saldo — {withdrawPocket.nama}</h3>
+
+            <div className="space-y-1">
+              <p className="text-xs text-gray-400">Saldo kantong: {formatCurrency(withdrawPocket.saldo, withdrawPocket.currency)}</p>
+              {(() => {
+                const l = getLockedAmount(withdrawPocket);
+                const maxW = Math.max(0, withdrawPocket.saldo - l);
+                return (
+                  <>
+                    {l > 0 && <p className="text-xs text-yellow-400/80">Terkunci: {formatCurrency(l, withdrawPocket.currency)}</p>}
+                    <p className="text-xs text-emerald-400">Bisa ditarik: {formatCurrency(maxW, withdrawPocket.currency)}</p>
+                  </>
+                );
+              })()}
+              {withdrawPocket.tipe === 'goal' && withdrawPocket.target_amount != null && (
+                <p className="text-xs text-purple-400">Sisa target: {formatCurrency(Math.max(0, withdrawPocket.target_amount), withdrawPocket.currency)}</p>
+              )}
+            </div>
+
+            {withdrawPocket.tipe === 'goal' && (
+              <div className="rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-400">
+                Penarikan mengurangi sisa target. Jika target tercapai, kantong otomatis dihapus.
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-400">
+                Jumlah ({withdrawPocket.currency === 'IDR' ? 'Rp' : '$'})
+              </label>
+              <CurrencyInput value={withdrawAmount} onChange={setWithdrawAmount} currency={withdrawPocket.currency} autoFocus />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={handleWithdraw}
+                className="flex-1 rounded-xl bg-yellow-500 py-2.5 font-semibold text-white hover:bg-yellow-600 transition-colors">
                 Tarik Saldo
               </button>
+              <button onClick={() => setWithdrawId(null)} className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors">Batal</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Summary */}
-      {needs.length > 0 && !withdrawMode && (
+      {pockets.length > 0 && (
         <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Ringkasan
-          </h2>
-
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Ringkasan</h2>
           <div className="space-y-2">
-            {summaryUSD.target > 0 && (
-              <>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mt-2">USD</p>
-                <div className="flex justify-between text-gray-300">
-                  <span>Target</span>
-                  <span className="font-medium text-white">{formatCurrency(summaryUSD.target, 'USD')}</span>
-                </div>
-                <div className="flex justify-between text-gray-300">
-                  <span>Terisi</span>
-                  <span className="font-medium text-emerald-400">{formatCurrency(summaryUSD.allocated, 'USD')}</span>
-                </div>
-              </>
-            )}
-
-            {summaryIDR.target > 0 && (
-              <>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mt-2">IDR</p>
-                <div className="flex justify-between text-gray-300">
-                  <span>Target</span>
-                  <span className="font-medium text-white">{formatCurrency(summaryIDR.target, 'IDR')}</span>
-                </div>
-                <div className="flex justify-between text-gray-300">
-                  <span>Terisi</span>
-                  <span className="font-medium text-emerald-400">{formatCurrency(summaryIDR.allocated, 'IDR')}</span>
-                </div>
-              </>
-            )}
-
+            <div className="flex justify-between text-gray-300">
+              <span>Total Kantong</span>
+              <span className="font-medium text-white">{pockets.length}</span>
+            </div>
+            <div className="flex justify-between text-gray-300">
+              <span>Permanen</span>
+              <span className="font-medium text-blue-400">{pockets.filter((p) => p.tipe === 'permanen').length}</span>
+            </div>
+            <div className="flex justify-between text-gray-300">
+              <span>Goal</span>
+              <span className="font-medium text-purple-400">{pockets.filter((p) => p.tipe === 'goal').length}</span>
+            </div>
             <div className="border-t border-gray-700 pt-2 mt-2">
               <div className="flex justify-between text-gray-300">
-                <span>Total Dialokasikan</span>
-                <span className="font-medium text-white">{formatCurrency(totalAllocatedUSD, 'USD')}</span>
+                <span>Total di Kantong</span>
+                <span className="font-medium text-white">{formatCurrency(totalPocketSaldoUSD, 'USD')}</span>
               </div>
               <div className="flex justify-between text-gray-300 mt-1">
                 <span>Saldo Tersedia</span>

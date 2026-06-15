@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { LogEntry, NeedsItem } from './types'
+import type { LogEntry, Pocket } from './types'
 
 interface LogState {
   logs: LogEntry[]
@@ -29,7 +29,7 @@ export const useLogStore = create<LogState>()(
 interface RateState {
   rate: number
   currency: string
-  exchangeRate: number // 1 USD = ? IDR
+  exchangeRate: number
   setRate: (rate: number) => void
   setCurrency: (currency: string) => void
   setExchangeRate: (rate: number) => void
@@ -79,54 +79,70 @@ export const useBalanceStore = create<BalanceState>()(
   )
 )
 
-interface NeedsState {
-  needs: NeedsItem[]
-  addNeed: (item: NeedsItem) => void
-  updateNeed: (id: string, data: Partial<NeedsItem>) => void
-  removeNeed: (id: string) => void
-  allocate: (id: string, amount: number) => void
-  allocateFromPending: (id: string, amount: number, clearDate: string) => void
-  withdraw: (id: string, amount: number) => void
+interface PocketState {
+  pockets: Pocket[]
+  addPocket: (pocket: Pocket) => void
+  updatePocket: (id: string, data: Partial<Pocket>) => void
+  removePocket: (id: string) => void
+  topUp: (id: string, amount: number) => void
+  topUpFromPending: (id: string, amount: number, clearDate: string) => void
+  /** Decrease pocket saldo. For goal pockets, also decreases target_amount. */
+  withdrawFromPocket: (id: string, amount: number) => void
+  /** Transfer saldo between two pockets (in USD, converted per pocket currency). */
+  transferBetweenPockets: (fromId: string, toId: string, fromAmount: number, toAmount: number) => void
 }
 
-export const useNeedsStore = create<NeedsState>()(
+export const usePocketStore = create<PocketState>()(
   persist(
     (set) => ({
-      needs: [],
-      addNeed: (item) => set((s) => ({ needs: [...s.needs, item] })),
-      updateNeed: (id, data) =>
+      pockets: [],
+      addPocket: (pocket) => set((s) => ({ pockets: [...s.pockets, pocket] })),
+      updatePocket: (id, data) =>
         set((s) => ({
-          needs: s.needs.map((n) => (n.id === id ? { ...n, ...data } : n)),
+          pockets: s.pockets.map((p) => (p.id === id ? { ...p, ...data } : p)),
         })),
-      removeNeed: (id) => set((s) => ({ needs: s.needs.filter((n) => n.id !== id) })),
-      allocate: (id, amount) =>
+      removePocket: (id) => set((s) => ({ pockets: s.pockets.filter((p) => p.id !== id) })),
+      topUp: (id, amount) =>
         set((s) => ({
-          needs: s.needs.map((n) =>
-            n.id === id ? { ...n, allocated: (n.allocated || 0) + amount } : n
+          pockets: s.pockets.map((p) =>
+            p.id === id ? { ...p, saldo: p.saldo + amount } : p
           ),
         })),
-      allocateFromPending: (id, amount, clearDate) =>
+      topUpFromPending: (id, amount, clearDate) =>
         set((s) => ({
-          needs: s.needs.map((n) =>
-            n.id === id
+          pockets: s.pockets.map((p) =>
+            p.id === id
               ? {
-                  ...n,
-                  allocated: (n.allocated || 0) + amount,
+                  ...p,
+                  saldo: p.saldo + amount,
                   pendingAllocations: [
-                    ...(n.pendingAllocations || []),
+                    ...(p.pendingAllocations || []),
                     { amount, clearDate },
                   ],
                 }
-              : n
+              : p
           ),
         })),
-      withdraw: (id, amount) =>
+      withdrawFromPocket: (id, amount) =>
         set((s) => ({
-          needs: s.needs.map((n) =>
-            n.id === id ? { ...n, allocated: Math.max(0, (n.allocated || 0) - amount) } : n
-          ),
+          pockets: s.pockets.map((p) => {
+            if (p.id !== id) return p
+            const newSaldo = Math.max(0, p.saldo - amount)
+            if (p.tipe === 'goal' && p.target_amount != null) {
+              return { ...p, saldo: newSaldo, target_amount: p.target_amount - amount }
+            }
+            return { ...p, saldo: newSaldo }
+          }),
+        })),
+      transferBetweenPockets: (fromId, toId, fromAmount, toAmount) =>
+        set((s) => ({
+          pockets: s.pockets.map((p) => {
+            if (p.id === fromId) return { ...p, saldo: Math.max(0, p.saldo - fromAmount) }
+            if (p.id === toId) return { ...p, saldo: p.saldo + toAmount }
+            return p
+          }),
         })),
     }),
-    { name: 'logtime_needs' }
+    { name: 'logtime_pockets' }
   )
 )
