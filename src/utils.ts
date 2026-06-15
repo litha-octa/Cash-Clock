@@ -1,4 +1,4 @@
-import type { LogEntry, Period, WeekGroup } from './types'
+import type { LogEntry, NeedsItem, Period, WeekGroup } from './types'
 
 export function generateId(): string {
   return crypto.randomUUID()
@@ -136,4 +136,27 @@ export function groupLogsByWeek(logs: LogEntry[]): WeekGroup[] {
   // Sort by weekStart descending (newest first)
   groups.sort((a, b) => b.weekStart.localeCompare(a.weekStart))
   return groups
+}
+
+/**
+ * Calculate the locked (pending) amount in a need's own currency.
+ * Locked = sum of pendingAllocations where clearDate > today.
+ */
+export function getLockedAmount(need: NeedsItem): number {
+  if (!need.pendingAllocations?.length) return 0
+  const today = toDateStr(new Date())
+  return need.pendingAllocations
+    .filter((pa) => pa.clearDate > today)
+    .reduce((sum, pa) => sum + pa.amount, 0)
+}
+
+/**
+ * Clean up pendingAllocations that have already cleared (clearDate <= today).
+ * Returns a new array or undefined if empty.
+ */
+export function cleanPendingAllocations(need: NeedsItem): NeedsItem['pendingAllocations'] {
+  if (!need.pendingAllocations?.length) return undefined
+  const today = toDateStr(new Date())
+  const remaining = need.pendingAllocations.filter((pa) => pa.clearDate > today)
+  return remaining.length > 0 ? remaining : undefined
 }

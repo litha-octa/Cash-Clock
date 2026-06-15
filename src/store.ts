@@ -85,6 +85,7 @@ interface NeedsState {
   updateNeed: (id: string, data: Partial<NeedsItem>) => void
   removeNeed: (id: string) => void
   allocate: (id: string, amount: number) => void
+  allocateFromPending: (id: string, amount: number, clearDate: string) => void
   withdraw: (id: string, amount: number) => void
 }
 
@@ -102,6 +103,21 @@ export const useNeedsStore = create<NeedsState>()(
         set((s) => ({
           needs: s.needs.map((n) =>
             n.id === id ? { ...n, allocated: (n.allocated || 0) + amount } : n
+          ),
+        })),
+      allocateFromPending: (id, amount, clearDate) =>
+        set((s) => ({
+          needs: s.needs.map((n) =>
+            n.id === id
+              ? {
+                  ...n,
+                  allocated: (n.allocated || 0) + amount,
+                  pendingAllocations: [
+                    ...(n.pendingAllocations || []),
+                    { amount, clearDate },
+                  ],
+                }
+              : n
           ),
         })),
       withdraw: (id, amount) =>

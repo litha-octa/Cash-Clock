@@ -28,8 +28,6 @@ export default function Dashboard() {
   const [confirmClear, setConfirmClear] = useState<"balance" | "pending" | null>(null);
   const [editingBalance, setEditingBalance] = useState(false);
   const [editBalanceValue, setEditBalanceValue] = useState("");
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [withdrawValue, setWithdrawValue] = useState("");
 
   const logs = useLogStore((s) => s.logs);
   const removeLogs = useLogStore((s) => s.removeLogs);
@@ -153,20 +151,6 @@ export default function Dashboard() {
     setEditingBalance(false);
   };
 
-  const handleOpenWithdraw = () => {
-    setWithdrawValue("");
-    setWithdrawing(true);
-  };
-
-  const handleWithdraw = () => {
-    const amount = parseFloat(withdrawValue);
-    if (isNaN(amount) || amount <= 0) return;
-    const currentFree = Math.max(0, freeBalance);
-    const actualWithdraw = Math.min(amount, currentFree);
-    setManualBalance(manualBalance - actualWithdraw);
-    setWithdrawing(false);
-  };
-
   const handleClearPending = () => {
     const ids = pendingGroups.flatMap((g) => g.logs.map((l) => l.id));
     removeLogs(ids);
@@ -273,70 +257,6 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
-
-      {/* Withdraw Button */}
-      {freeBalance > 0 && (
-        <button
-          onClick={handleOpenWithdraw}
-          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 py-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-            <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-          </svg>
-          Tarik Saldo
-        </button>
-      )}
-
-      {/* Withdraw Modal */}
-      {withdrawing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-white mb-2">
-              Tarik Saldo
-            </h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Saldo tersedia: <span className="text-emerald-400 font-semibold">{formatCurrency(Math.max(0, freeBalance), "USD")}</span>
-              <span className="text-emerald-400/60 ml-1">({formatCurrency(Math.max(0, freeBalance) * exchangeRate, "IDR")})</span>
-            </p>
-            <label className="block text-sm text-gray-400 mb-1">Jumlah Penarikan (USD)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              max={Math.max(0, freeBalance)}
-              value={withdrawValue}
-              onChange={(e) => setWithdrawValue(e.target.value)}
-              placeholder="0.00"
-              className="w-full rounded-xl bg-gray-900 border border-gray-700 px-4 py-2.5 text-white text-lg font-medium focus:outline-none focus:border-emerald-500 mb-1"
-              autoFocus
-            />
-            <p className="text-sm text-gray-500 mb-1">
-              {formatCurrency((parseFloat(withdrawValue) || 0) * exchangeRate, "IDR")}
-            </p>
-            {parseFloat(withdrawValue) > Math.max(0, freeBalance) && (
-              <p className="text-xs text-red-400 mb-1">Melebihi saldo tersedia, akan ditarik maksimal.</p>
-            )}
-            <p className="text-xs text-gray-500 mb-5">
-              Sisa setelah tarik: {formatCurrency(Math.max(0, Math.max(0, freeBalance) - (parseFloat(withdrawValue) || 0)), "USD")}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setWithdrawing(false)}
-                className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleWithdraw}
-                className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-medium text-white hover:bg-emerald-600 transition-colors"
-              >
-                Tarik
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal */}
       {confirmClear && (

@@ -6,11 +6,17 @@ export interface LogEntry {
   project?: string
 }
 
+export interface PendingAllocation {
+  amount: number        // in the need's currency
+  clearDate: string     // ISO date when this becomes withdrawable
+}
+
 export interface NeedsItem {
   id: string
   name: string
   amount: number        // target amount
   allocated: number     // amount saved/allocated (in same currency as need)
+  pendingAllocations?: PendingAllocation[]  // allocations from pending balance (locked until clearDate)
   currency: 'USD' | 'IDR'
   priority: 'high' | 'medium' | 'low'
 }
