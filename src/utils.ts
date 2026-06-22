@@ -64,9 +64,9 @@ export function calculateEarnings(totalHours: number, rate: number) {
 export function formatHours(hours: number): string {
   const h = Math.floor(hours)
   const m = Math.round((hours - h) * 60)
-  if (h === 0) return `${m} menit`
-  if (m === 0) return `${h} jam`
-  return `${h} jam ${m} menit`
+  if (h === 0) return `${m} min`
+  if (m === 0) return `${h} hr`
+  return `${h} hr ${m} min`
 }
 
 export function formatCurrency(amount: number, currency: string = 'USD'): string {
@@ -79,7 +79,7 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
 
 export function formatDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
 }
 
 /**

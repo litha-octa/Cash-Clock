@@ -21,9 +21,9 @@ function parseDuration(raw: string): number {
 function formatDurationDisplay(hours: number): string {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
-  if (h === 0) return `${m} menit`;
-  if (m === 0) return `${h} jam`;
-  return `${h} jam ${m} menit`;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} hr`;
+  return `${h} hr ${m} min`;
 }
 
 export default function LogPage() {
@@ -96,13 +96,13 @@ export default function LogPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-white">
-        {editingId ? 'Edit Log' : 'Tambah Log'}
+        {editingId ? 'Edit Log' : 'Add Log'}
       </h1>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-400">Tanggal</label>
+          <label className="mb-1 block text-sm font-medium text-gray-400">Date</label>
           <input
             type="date"
             value={date}
@@ -112,36 +112,36 @@ export default function LogPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-400">Deskripsi</label>
+          <label className="mb-1 block text-sm font-medium text-gray-400">Description</label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Contoh: Design landing page"
+            placeholder="e.g. Design landing page"
             className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-400">Durasi</label>
+          <label className="mb-1 block text-sm font-medium text-gray-400">Duration</label>
           <input
             type="text"
             value={durationRaw}
             onChange={(e) => setDurationRaw(e.target.value)}
-            placeholder="1:30 atau 1.5"
+            placeholder="1:30 or 1.5"
             className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
           />
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Proyek <span className="text-gray-600">(opsional)</span>
+            Project <span className="text-gray-600">(optional)</span>
           </label>
           <input
             type="text"
             value={project}
             onChange={(e) => setProject(e.target.value)}
-            placeholder="Nama proyek"
+            placeholder="Project name"
             className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
           />
         </div>
@@ -151,7 +151,7 @@ export default function LogPage() {
             type="submit"
             className="flex-1 rounded-xl bg-emerald-500 py-2.5 font-semibold text-white hover:bg-emerald-600 transition-colors"
           >
-            {editingId ? 'Simpan Perubahan' : 'Tambah Log'}
+            {editingId ? 'Save Changes' : 'Add Log'}
           </button>
           {editingId && (
             <button
@@ -159,7 +159,7 @@ export default function LogPage() {
               onClick={resetForm}
               className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
             >
-              Batal
+              Cancel
             </button>
           )}
         </div>
@@ -168,12 +168,12 @@ export default function LogPage() {
       {/* Current Week Logs */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Minggu Ini ({activeGroup?.logs.length ?? 0} log)
+          This Week ({activeGroup?.logs.length ?? 0} logs)
         </h2>
 
         {!activeGroup || activeGroup.logs.length === 0 ? (
           <div className="rounded-2xl bg-gray-800 p-8 text-center shadow-lg">
-            <p className="text-gray-500">Belum ada log minggu ini.</p>
+            <p className="text-gray-500">No logs this week.</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -210,7 +210,7 @@ export default function LogPage() {
                     onClick={() => handleDelete(log.id)}
                     className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors"
                   >
-                    Hapus
+                    Delete
                   </button>
                 </div>
               </li>
@@ -223,7 +223,7 @@ export default function LogPage() {
       {pastGroups.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Riwayat Mingguan
+            Weekly History
           </h2>
 
           <ul className="space-y-3">
@@ -252,7 +252,7 @@ export default function LogPage() {
                             : 'bg-emerald-500/20 text-emerald-400'
                         }`}
                       >
-                        {isPending ? `Cair ${formatDateShort(group.clearDate)}` : 'Cleared'}
+                        {isPending ? `Clears ${formatDateShort(group.clearDate)}` : 'Cleared'}
                       </span>
                     </div>
                   </div>
@@ -260,7 +260,7 @@ export default function LogPage() {
                   {/* Collapsed log list */}
                   <details className="mt-2">
                     <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-400">
-                      Lihat detail log
+                      View log details
                     </summary>
                     <ul className="mt-2 space-y-2">
                       {group.logs.map((log) => (

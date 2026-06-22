@@ -52,10 +52,10 @@ export default function Settings() {
   };
 
   const deleteLabel = confirmDelete === 'balance'
-    ? 'Saldo Tersedia'
+    ? 'Available Balance'
     : confirmDelete === 'pending'
-    ? 'Saldo Pending'
-    : 'Semua Saldo';
+    ? 'Pending Balance'
+    : 'All Balances';
 
   const deleteAmount = confirmDelete === 'balance'
     ? totalCleared
@@ -65,13 +65,13 @@ export default function Settings() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-white">Pengaturan</h1>
+      <h1 className="text-2xl font-bold text-white">Settings</h1>
 
       <div className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-5">
         {/* Rate per hour */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Rate per Jam
+            Hourly Rate
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
@@ -87,14 +87,14 @@ export default function Settings() {
             />
           </div>
           <p className="mt-1 text-xs text-gray-600">
-            Tarif yang kamu kenakan per jam kerja.
+            Your hourly rate for work.
           </p>
         </div>
 
         {/* Currency */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Mata Uang
+            Currency
           </label>
           <input
             type="text"
@@ -104,14 +104,14 @@ export default function Settings() {
             className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
           />
           <p className="mt-1 text-xs text-gray-600">
-            Simbol atau kode mata uang (contoh: USD, IDR, $).
+            Currency symbol or code (e.g. USD, IDR, $).
           </p>
         </div>
 
         {/* Exchange Rate */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Nilai Tukar (1 USD = ? IDR)
+            Exchange Rate (1 USD = ? IDR)
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
@@ -126,14 +126,14 @@ export default function Settings() {
             />
           </div>
           <p className="mt-1 text-xs text-gray-600">
-            Kurs konversi USD ke Rupiah.
+            USD to IDR conversion rate.
           </p>
         </div>
 
         {/* Weekly target */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Target Mingguan
+            Weekly Target
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
@@ -149,7 +149,7 @@ export default function Settings() {
             />
           </div>
           <p className="mt-1 text-xs text-gray-600">
-            Target pendapatan bersih per minggu.
+            Net earnings target per week.
           </p>
         </div>
       </div>
@@ -157,14 +157,14 @@ export default function Settings() {
       {/* Danger Zone */}
       <div className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-red-400">
-          Hapus Data Saldo
+          Delete Balance Data
         </h2>
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-white font-medium">Saldo Tersedia</p>
+            <p className="text-sm text-white font-medium">Available Balance</p>
             <p className="text-xs text-gray-500">
-              {clearedGroups.length} minggu · {formatCurrency(totalCleared, 'USD')}
+              {clearedGroups.length} weeks · {formatCurrency(totalCleared, 'USD')}
             </p>
           </div>
           <button
@@ -172,15 +172,15 @@ export default function Settings() {
             disabled={clearedGroups.length === 0}
             className="rounded-xl bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            Hapus
+            Delete
           </button>
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-white font-medium">Saldo Pending</p>
+            <p className="text-sm text-white font-medium">Pending Balance</p>
             <p className="text-xs text-gray-500">
-              {pendingGroups.length} minggu · {formatCurrency(totalPending, 'USD')}
+              {pendingGroups.length} weeks · {formatCurrency(totalPending, 'USD')}
             </p>
           </div>
           <button
@@ -188,15 +188,15 @@ export default function Settings() {
             disabled={pendingGroups.length === 0}
             className="rounded-xl bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            Hapus
+            Delete
           </button>
         </div>
 
         <div className="border-t border-gray-700 pt-4 flex items-center justify-between">
           <div>
-            <p className="text-sm text-white font-medium">Hapus Semua Saldo</p>
+            <p className="text-sm text-white font-medium">Delete All Balances</p>
             <p className="text-xs text-gray-500">
-              Hapus saldo tersedia & pending sekaligus
+              Delete available & pending balances at once
             </p>
           </div>
           <button
@@ -204,7 +204,7 @@ export default function Settings() {
             disabled={clearedGroups.length === 0 && pendingGroups.length === 0}
             className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            Hapus Semua
+            Delete All
           </button>
         </div>
       </div>
@@ -214,26 +214,26 @@ export default function Settings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl">
             <h3 className="text-lg font-bold text-white mb-2">
-              Hapus {deleteLabel}?
+              Delete {deleteLabel}?
             </h3>
             <p className="text-sm text-gray-400 mb-1">
-              Semua log dari minggu terkait akan dihapus permanen dan tidak bisa dikembalikan.
+              All logs from related weeks will be permanently deleted and cannot be recovered.
             </p>
             <p className="text-sm font-semibold text-red-400 mb-5">
-              {formatCurrency(deleteAmount, 'USD')} akan dihapus.
+              {formatCurrency(deleteAmount, 'USD')} will be deleted.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
               <button
                 onClick={handleDelete}
                 className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition-colors"
               >
-                Hapus
+                Delete
               </button>
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function Settings() {
 
       {/* Info notice */}
       <div className="rounded-2xl bg-emerald-500/10 p-4 text-sm text-emerald-300">
-        Semua perubahan disimpan secara otomatis.
+        All changes are saved automatically.
       </div>
     </div>
   );

@@ -18,9 +18,9 @@ import {
 import type { Period } from "../types";
 
 const periods: { label: string; value: Period }[] = [
-  { label: "Hari Ini", value: "today" },
-  { label: "Minggu Ini", value: "this_week" },
-  { label: "Semua", value: "all" },
+  { label: "Today", value: "today" },
+  { label: "This Week", value: "this_week" },
+  { label: "All", value: "all" },
 ];
 
 export default function Dashboard() {
@@ -122,10 +122,10 @@ export default function Dashboard() {
 
   const targetLabel = () => {
     if (targetProgress <= 0)
-      return { text: "Belum mulai", color: "text-red-400" };
+      return { text: "Not started", color: "text-red-400" };
     if (targetProgress < 100)
-      return { text: "Sedang berjalan", color: "text-yellow-400" };
-    return { text: "Target tercapai!", color: "text-emerald-400" };
+      return { text: "In progress", color: "text-yellow-400" };
+    return { text: "Target reached!", color: "text-emerald-400" };
   };
 
   const status = targetLabel();
@@ -164,7 +164,7 @@ export default function Dashboard() {
         <Link
           to="/log"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white text-xl shadow-lg hover:bg-emerald-600 transition-colors"
-          aria-label="Tambah Log"
+          aria-label="Add Log"
         >
           +
         </Link>
@@ -191,13 +191,13 @@ export default function Dashboard() {
         <div className="rounded-2xl bg-gray-800 p-4 shadow-lg">
           <div className="flex items-start justify-between mb-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Saldo Tersedia
+              Available Balance
             </p>
             <div className="flex gap-1">
               <button
                 onClick={handleOpenEditBalance}
                 className="text-gray-500 hover:text-emerald-400 transition-colors"
-                aria-label="Edit saldo tersedia"
+                aria-label="Edit available balance"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -207,7 +207,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => setConfirmClear("balance")}
                   className="text-gray-500 hover:text-red-400 transition-colors"
-                  aria-label="Hapus saldo tersedia"
+                  aria-label="Delete available balance"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -227,7 +227,7 @@ export default function Dashboard() {
             </div>
             {totalPocketSaldoUSD > 0 && (
               <p className="text-xs text-gray-500">
-                {formatCurrency(totalPocketSaldoUSD, "USD")} di kantong
+                {formatCurrency(totalPocketSaldoUSD, "USD")} in pockets
               </p>
             )}
           </div>
@@ -241,7 +241,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setConfirmClear("pending")}
                 className="text-gray-500 hover:text-red-400 transition-colors"
-                aria-label="Hapus saldo pending"
+                aria-label="Delete pending balance"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -259,7 +259,7 @@ export default function Dashboard() {
               </p>
             </div>
             <p className="text-xs text-gray-500">
-              {pendingGroups.length} minggu pending
+              {pendingGroups.length} weeks pending
             </p>
           </div>
         </div>
@@ -270,12 +270,12 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl">
             <h3 className="text-lg font-bold text-white mb-2">
-              Hapus {confirmClear === "balance" ? "Saldo Tersedia" : "Saldo Pending"}?
+              Delete {confirmClear === "balance" ? "Available Balance" : "Pending Balance"}?
             </h3>
             <p className="text-sm text-gray-400 mb-1">
-              Semua log dari minggu yang{" "}
-              {confirmClear === "balance" ? "sudah cair" : "masih pending"} akan
-              dihapus permanen.
+              All logs from{" "}
+              {confirmClear === "balance" ? "cleared" : "pending"} weeks will
+              be permanently deleted.
             </p>
             <p className="text-sm font-semibold mb-5">
               <span className={confirmClear === "balance" ? "text-emerald-400" : "text-yellow-400"}>
@@ -284,20 +284,20 @@ export default function Dashboard() {
                   "USD",
                 )}
               </span>
-              {" "}akan dihapus.
+              {" "}will be deleted.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmClear(null)}
                 className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
               <button
                 onClick={confirmClear === "balance" ? handleClearBalance : handleClearPending}
                 className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition-colors"
               >
-                Hapus
+                Delete
               </button>
             </div>
           </div>
@@ -309,9 +309,9 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-xl">
             <h3 className="text-lg font-bold text-white mb-4">
-              Edit Saldo Tersedia
+              Edit Available Balance
             </h3>
-            <label className="block text-sm text-gray-400 mb-1">Saldo (USD)</label>
+            <label className="block text-sm text-gray-400 mb-1">Balance (USD)</label>
             <input
               type="number"
               min="0"
@@ -329,13 +329,13 @@ export default function Dashboard() {
                 onClick={() => setEditingBalance(false)}
                 className="flex-1 rounded-xl bg-gray-700 py-2.5 text-sm font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
               <button
                 onClick={handleSaveBalance}
                 className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-sm font-medium text-white hover:bg-emerald-600 transition-colors"
               >
-                Simpan
+                Save
               </button>
             </div>
           </div>
@@ -375,7 +375,7 @@ export default function Dashboard() {
                         {formatCurrency(groupEarnings.net * exchangeRate, "IDR")}
                       </p>
                       <p className="text-xs text-gray-500">
-                        Cair {formatDateShort(group.clearDate)}
+                        Clears {formatDateShort(group.clearDate)}
                       </p>
                     </div>
                   </div>
@@ -391,25 +391,25 @@ export default function Dashboard() {
         <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-              Kantong
+              Pockets
             </h2>
             <Link to="/needs" className="text-sm text-emerald-400 hover:text-emerald-300">
-              Kelola
+              Manage
             </Link>
           </div>
 
           <div className="flex justify-between text-gray-300">
-            <span>Jumlah Kantong</span>
+            <span>Total Pockets</span>
             <span className="font-medium text-white">{pockets.length}</span>
           </div>
           {goalPockets.length > 0 && (
             <div className="mt-1 flex justify-between text-gray-300">
-              <span>Goal Siap Tarik</span>
+              <span>Goals Ready</span>
               <span className="font-medium text-emerald-400">{goalReady} / {goalPockets.length}</span>
             </div>
           )}
           <div className="mt-1 flex justify-between text-gray-300">
-            <span>Total di Kantong</span>
+            <span>Total in Pockets</span>
             <span className="font-medium text-white">
               {formatCurrency(totalPocketSaldoUSD, "USD")}
             </span>
@@ -420,26 +420,26 @@ export default function Dashboard() {
       {/* Earning Summary Card */}
       <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Ringkasan Pendapatan
+          Earnings Summary
         </h2>
 
         <div className="space-y-3">
           <div className="flex justify-between text-gray-300">
-            <span>Total Jam Kerja</span>
+            <span>Total Work Hours</span>
             <span className="font-medium text-white">
               {formatHours(totalHours)}
             </span>
           </div>
 
           <div className="flex justify-between text-gray-300">
-            <span>Pendapatan Kotor</span>
+            <span>Gross Earnings</span>
             <span className="font-medium text-white">
               {formatCurrency(earnings.gross, currency)}
             </span>
           </div>
 
           <div className="flex justify-between text-gray-300">
-            <span>Potongan (10% + {formatCurrency(1, currency)})</span>
+            <span>Deduction (10% + {formatCurrency(1, currency)})</span>
             <span className="font-medium text-red-400">
               -{formatCurrency(earnings.deduction, currency)}
             </span>
@@ -448,7 +448,7 @@ export default function Dashboard() {
           <div className="border-t border-gray-700 pt-3">
             <div className="flex justify-between items-end">
               <span className="text-lg font-semibold text-white">
-                Pendapatan Bersih
+                Net Earnings
               </span>
               <div className="text-right">
                 <span className="block text-2xl font-bold text-emerald-400">
@@ -467,7 +467,7 @@ export default function Dashboard() {
       <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Target Mingguan
+            Weekly Target
           </h2>
           <span className={`text-sm font-semibold ${status.color}`}>
             {status.text}
@@ -484,7 +484,7 @@ export default function Dashboard() {
         <div className="flex justify-between text-sm text-gray-400">
           <span>{targetProgress.toFixed(1)}%</span>
           <span>
-            Sisa: {formatCurrency(remaining, currency)} /{" "}
+            Remaining: {formatCurrency(remaining, currency)} /{" "}
             {formatCurrency(weeklyTarget, currency)}
           </span>
         </div>
@@ -494,19 +494,19 @@ export default function Dashboard() {
       <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Log Terbaru
+            Recent Logs
           </h2>
           <Link
             to="/log"
             className="text-sm text-emerald-400 hover:text-emerald-300"
           >
-            Lihat Semua
+            View All
           </Link>
         </div>
 
         {recentLogs.length === 0 ? (
           <p className="text-center text-gray-500 py-4">
-            Belum ada log. Mulai catat waktumu!
+            No logs yet. Start tracking your time!
           </p>
         ) : (
           <ul className="space-y-3">

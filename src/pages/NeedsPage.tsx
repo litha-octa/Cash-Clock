@@ -33,7 +33,7 @@ function parseAmount(val: string, cur: PocketCurrency): number {
 }
 
 const typeBadge: Record<PocketType, { label: string; cls: string }> = {
-  permanen: { label: "Permanen", cls: "bg-blue-500/20 text-blue-400" },
+  permanen: { label: "Permanent", cls: "bg-blue-500/20 text-blue-400" },
   goal: { label: "Goal", cls: "bg-purple-500/20 text-purple-400" },
 };
 
@@ -508,14 +508,14 @@ export default function NeedsPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-white">
-        {editingId ? "Edit Kantong" : "Kantong"}
+        {editingId ? "Edit Pocket" : "Pockets"}
       </h1>
 
       {/* Goal Toast */}
       {goalToast && (
         <div className="fixed top-4 left-4 right-4 z-[60] mx-auto max-w-lg animate-pulse rounded-2xl bg-emerald-500 p-4 text-center shadow-xl">
           <p className="text-lg font-bold text-white">
-            Goal &lsquo;{goalToast}&rsquo; tercapai!
+            Goal &lsquo;{goalToast}&rsquo; reached!
           </p>
         </div>
       )}
@@ -524,7 +524,7 @@ export default function NeedsPage() {
       <div className="space-y-3">
         <div className="rounded-2xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400/70 mb-1">
-            Saldo Tersedia
+            Available Balance
           </p>
           <div className="flex items-baseline justify-between">
             <div>
@@ -542,7 +542,7 @@ export default function NeedsPage() {
         </div>
         <div className="rounded-2xl bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-yellow-400/70 mb-1">
-            Saldo Pending
+            Pending Balance
           </p>
           <div className="flex items-baseline justify-between">
             <div>
@@ -567,7 +567,7 @@ export default function NeedsPage() {
           onClick={openMultiWithdraw}
           className="w-full rounded-2xl bg-yellow-500/10 border border-yellow-500/30 py-3 text-sm font-semibold text-yellow-400 hover:bg-yellow-500/20 transition-colors"
         >
-          Tarik Saldo
+          Withdraw
         </button>
       )}
 
@@ -577,17 +577,17 @@ export default function NeedsPage() {
         className="rounded-2xl bg-gray-800 p-5 shadow-lg space-y-4"
       >
         <p className="text-sm font-medium text-gray-400">
-          {editingId ? "Edit kantong" : "Buat kantong baru"}
+          {editingId ? "Edit pocket" : "Create new pocket"}
         </p>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Nama
+            Name
           </label>
           <input
             type="text"
             value={nama}
             onChange={(e) => setNama(e.target.value)}
-            placeholder="Contoh: Belanja bulanan"
+            placeholder="e.g. Monthly expenses"
             className="w-full rounded-xl bg-gray-900 px-4 py-2.5 text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
           />
         </div>
@@ -595,7 +595,7 @@ export default function NeedsPage() {
         {!editingId && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-400">
-              Tipe Kantong
+              Pocket Type
             </label>
             <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden">
               <button
@@ -603,7 +603,7 @@ export default function NeedsPage() {
                 onClick={() => setPocketType("permanen")}
                 className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${pocketType === "permanen" ? "bg-blue-500 text-white" : "text-gray-400 hover:text-white"}`}
               >
-                Permanen
+                Permanent
               </button>
               <button
                 type="button"
@@ -615,15 +615,15 @@ export default function NeedsPage() {
             </div>
             <p className="mt-1 text-xs text-gray-600">
               {pocketType === "permanen"
-                ? "Untuk kebutuhan rutin. Tidak ada target."
-                : "Untuk menabung ke target tertentu. Otomatis selesai saat target tercapai."}
+                ? "For recurring needs. No target."
+                : "For saving towards a target. Automatically completes when target is reached."}
             </p>
           </div>
         )}
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-400">
-            Mata Uang
+            Currency
           </label>
           <div className="flex rounded-xl bg-gray-900 ring-1 ring-gray-700 overflow-hidden w-fit">
             <button
@@ -647,7 +647,7 @@ export default function NeedsPage() {
           <label className="mb-1 block text-sm font-medium text-gray-400">
             Target{" "}
             {pocketType === "permanen" && (
-              <span className="text-gray-600">(opsional)</span>
+              <span className="text-gray-600">(optional)</span>
             )}
           </label>
           <CurrencyInput
@@ -663,7 +663,7 @@ export default function NeedsPage() {
             type="submit"
             className="flex-1 rounded-xl bg-emerald-500 py-2.5 font-semibold text-white hover:bg-emerald-600 transition-colors"
           >
-            {editingId ? "Simpan" : "Buat Kantong"}
+            {editingId ? "Save" : "Create Pocket"}
           </button>
           {editingId && (
             <button
@@ -671,7 +671,7 @@ export default function NeedsPage() {
               onClick={resetForm}
               className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
             >
-              Batal
+              Cancel
             </button>
           )}
         </div>
@@ -680,13 +680,13 @@ export default function NeedsPage() {
       {/* Pocket Grid */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Daftar Kantong ({pockets.length})
+          Pocket List ({pockets.length})
         </h2>
 
         {pockets.length === 0 ? (
           <div className="rounded-2xl bg-gray-800 p-8 text-center shadow-lg">
             <p className="text-gray-500">
-              Belum ada kantong. Buat kantong pertamamu!
+              No pockets yet. Create your first pocket!
             </p>
           </div>
         ) : (
@@ -727,7 +727,7 @@ export default function NeedsPage() {
                           </span>
                           {isGoalFull && (
                             <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                              Siap Tarik
+                              Ready
                             </span>
                           )}
                           {locked > 0 && (
@@ -779,7 +779,7 @@ export default function NeedsPage() {
                         <p className="text-[10px] text-gray-500 mt-0.5">
                           {formatCurrency(pocket.saldo, pocket.currency)} /{" "}
                           {formatCurrency(pocket.target_awal!, pocket.currency)}{" "}
-                          · Sisa: {formatCurrency(remaining, pocket.currency)}
+                          · Remaining: {formatCurrency(remaining, pocket.currency)}
                         </p>
                       </div>
                     )}
@@ -793,21 +793,21 @@ export default function NeedsPage() {
                           onClick={() => openTopUp(pocket.id)}
                           className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-400 hover:bg-emerald-500/30 transition-colors"
                         >
-                          Isi Saldo
+                          Top Up
                         </button>
                         <button
                           onClick={() => openMove(pocket.id)}
                           disabled={pocket.saldo - locked <= 0}
                           className="rounded-lg bg-cyan-500/20 px-3 py-2 text-xs font-medium text-cyan-400 hover:bg-cyan-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          Pindahkan
+                          Transfer
                         </button>
                         <button
                           onClick={() => openWithdraw(pocket.id)}
                           disabled={pocket.saldo - locked <= 0}
                           className="rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-medium text-yellow-400 hover:bg-yellow-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
-                          Tarik Saldo
+                          Withdraw
                         </button>
                         <button
                           onClick={() => handleEdit(pocket)}
@@ -819,7 +819,7 @@ export default function NeedsPage() {
                           onClick={() => handleDelete(pocket)}
                           className="rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors"
                         >
-                          Hapus
+                          Delete
                         </button>
                       </div>
                     </div>
@@ -842,13 +842,13 @@ export default function NeedsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-white">
-              Isi Saldo — {topUpPocket.nama}
+              Top Up — {topUpPocket.nama}
             </h3>
 
             {/* Source selector */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">
-                Sumber
+                Source
               </label>
               <select
                 value={topUpSource}
@@ -856,12 +856,12 @@ export default function NeedsPage() {
                 className="w-full rounded-xl bg-gray-900 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-emerald-500 transition-shadow"
               >
                 <option value="balance">
-                  Saldo Tersedia —{" "}
+                  Available Balance —{" "}
                   {formatCurrency(Math.max(0, freeBalanceUSD), "USD")}
                 </option>
                 {pendingGroups.length > 0 && (
                   <option value="pending">
-                    Saldo Pending —{" "}
+                    Pending Balance —{" "}
                     {formatCurrency(Math.max(0, freePendingUSD), "USD")}
                   </option>
                 )}
@@ -883,7 +883,7 @@ export default function NeedsPage() {
               <>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">
-                    Pilih minggu pending
+                    Select pending week
                   </label>
                   <select
                     value={selectedPendingWeek || ""}
@@ -896,7 +896,7 @@ export default function NeedsPage() {
                         <option key={g.weekStart} value={g.weekStart}>
                           {formatDateShort(g.weekStart)} -{" "}
                           {formatDateShort(g.weekEnd)} ·{" "}
-                          {formatCurrency(ge, "USD")} · cair{" "}
+                          {formatCurrency(ge, "USD")} · clears{" "}
                           {formatDateShort(g.clearDate)}
                         </option>
                       );
@@ -916,14 +916,14 @@ export default function NeedsPage() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  Saldo dari pending tidak bisa ditarik sampai masa pending
-                  berakhir
+                  Pending balance cannot be withdrawn until the pending period
+                  ends
                 </p>
               </>
             )}
 
             <p className="text-xs text-gray-400">
-              Tersedia: {formatCurrency(topUpSourceAvail, "USD")}
+              Available: {formatCurrency(topUpSourceAvail, "USD")}
               {topUpPocket.currency === "IDR" && (
                 <> ({formatCurrency(topUpSourceAvail * exchangeRate, "IDR")})</>
               )}
@@ -931,7 +931,7 @@ export default function NeedsPage() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-400">
-                Jumlah ({topUpPocket.currency === "IDR" ? "Rp" : "$"})
+                Amount ({topUpPocket.currency === "IDR" ? "Rp" : "$"})
               </label>
               <CurrencyInput
                 value={topUpAmount}
@@ -950,13 +950,13 @@ export default function NeedsPage() {
                     : "bg-emerald-500 hover:bg-emerald-600"
                 }`}
               >
-                {topUpSource === "pending" ? "Isi dari Pending" : "Isi Saldo"}
+                {topUpSource === "pending" ? "Top Up from Pending" : "Top Up"}
               </button>
               <button
                 onClick={() => setTopUpId(null)}
                 className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
             </div>
           </div>
@@ -974,18 +974,18 @@ export default function NeedsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-white">
-              Pindahkan Saldo — {movePocket.nama}
+              Transfer Balance — {movePocket.nama}
             </h3>
 
             <p className="text-xs text-gray-400">
-              Saldo: {formatCurrency(movePocket.saldo, movePocket.currency)}
+              Balance: {formatCurrency(movePocket.saldo, movePocket.currency)}
               {(() => {
                 const l = getLockedAmount(movePocket);
                 if (l <= 0) return null;
                 return (
                   <>
                     {" "}
-                    · Bisa dipindah:{" "}
+                    · Transferable:{" "}
                     {formatCurrency(movePocket.saldo - l, movePocket.currency)}
                   </>
                 );
@@ -995,14 +995,14 @@ export default function NeedsPage() {
             {/* Destination selector */}
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">
-                Tujuan
+                Destination
               </label>
               <select
                 value={moveDest}
                 onChange={(e) => setMoveDest(e.target.value)}
                 className="w-full rounded-xl bg-gray-900 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-gray-700 focus:ring-cyan-500 transition-shadow"
               >
-                <option value="balance">Saldo Tersedia</option>
+                <option value="balance">Available Balance</option>
                 {pockets
                   .filter((p) => p.id !== moveId)
                   .map((p) => (
@@ -1015,7 +1015,7 @@ export default function NeedsPage() {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-400">
-                Jumlah ({movePocket.currency === "IDR" ? "Rp" : "$"})
+                Amount ({movePocket.currency === "IDR" ? "Rp" : "$"})
               </label>
               <CurrencyInput
                 value={moveAmount}
@@ -1030,13 +1030,13 @@ export default function NeedsPage() {
                 onClick={handleMove}
                 className="flex-1 rounded-xl bg-cyan-500 py-2.5 font-semibold text-white hover:bg-cyan-600 transition-colors"
               >
-                Pindahkan
+                Transfer
               </button>
               <button
                 onClick={() => setMoveId(null)}
                 className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
             </div>
           </div>
@@ -1054,12 +1054,12 @@ export default function NeedsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-white">
-              Tarik Saldo — {withdrawPocket.nama}
+              Withdraw — {withdrawPocket.nama}
             </h3>
 
             <div className="space-y-1">
               <p className="text-xs text-gray-400">
-                Saldo kantong:{" "}
+                Pocket balance:{" "}
                 {formatCurrency(withdrawPocket.saldo, withdrawPocket.currency)}
               </p>
               {(() => {
@@ -1069,11 +1069,11 @@ export default function NeedsPage() {
                   <>
                     {l > 0 && (
                       <p className="text-xs text-yellow-400/80">
-                        Terkunci: {formatCurrency(l, withdrawPocket.currency)}
+                        Locked: {formatCurrency(l, withdrawPocket.currency)}
                       </p>
                     )}
                     <p className="text-xs text-emerald-400">
-                      Bisa ditarik:{" "}
+                      Withdrawable:{" "}
                       {formatCurrency(maxW, withdrawPocket.currency)}
                     </p>
                   </>
@@ -1082,7 +1082,7 @@ export default function NeedsPage() {
               {withdrawPocket.tipe === "goal" &&
                 withdrawPocket.target_amount != null && (
                   <p className="text-xs text-purple-400">
-                    Sisa target:{" "}
+                    Remaining target:{" "}
                     {formatCurrency(
                       Math.max(0, withdrawPocket.target_amount),
                       withdrawPocket.currency,
@@ -1093,14 +1093,14 @@ export default function NeedsPage() {
 
             {withdrawPocket.tipe === "goal" && (
               <div className="rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-400">
-                Penarikan mengurangi sisa target. Jika target tercapai, kantong
-                otomatis dihapus.
+                Withdrawal reduces remaining target. If target is reached, pocket
+                is automatically deleted.
               </div>
             )}
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-400">
-                Jumlah ({withdrawPocket.currency === "IDR" ? "Rp" : "$"})
+                Amount ({withdrawPocket.currency === "IDR" ? "Rp" : "$"})
               </label>
               <CurrencyInput
                 value={withdrawAmount}
@@ -1115,13 +1115,13 @@ export default function NeedsPage() {
                 onClick={handleWithdraw}
                 className="flex-1 rounded-xl bg-yellow-500 py-2.5 font-semibold text-white hover:bg-yellow-600 transition-colors"
               >
-                Tarik Saldo
+                Withdraw
               </button>
               <button
                 onClick={() => setWithdrawId(null)}
                 className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
               >
-                Batal
+                Cancel
               </button>
             </div>
           </div>
@@ -1140,7 +1140,7 @@ export default function NeedsPage() {
           >
             {mwStep === "input" && (
               <>
-                <h3 className="text-lg font-bold text-white">Tarik Saldo</h3>
+                <h3 className="text-lg font-bold text-white">Withdraw</h3>
 
                 {/* Pool input */}
                 {freeBalanceUSD > 0 && (
@@ -1148,10 +1148,10 @@ export default function NeedsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium text-white text-sm">
-                          Saldo Tersedia
+                          Available Balance
                         </p>
                         <p className="text-xs text-gray-500">
-                          Tersedia:{" "}
+                          Available:{" "}
                           {formatCurrency(Math.max(0, freeBalanceUSD), "USD")}
                           <span className="text-gray-600">
                             {" "}
@@ -1202,13 +1202,13 @@ export default function NeedsPage() {
                             </p>
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            Tersedia:{" "}
+                            Available:{" "}
                             {formatCurrency(maxAvail, pocket.currency)}
                             {locked > 0 && (
                               <span className="text-yellow-400/60">
                                 {" "}
                                 · {formatCurrency(locked, pocket.currency)}{" "}
-                                terkunci
+                                locked
                               </span>
                             )}
                           </p>
@@ -1252,7 +1252,7 @@ export default function NeedsPage() {
                           }}
                           className="shrink-0 rounded-xl bg-yellow-500/20 px-3 text-xs font-medium text-yellow-400 hover:bg-yellow-500/30 transition-colors"
                         >
-                          Semua
+                          All
                         </button>
                       </div>
                     </div>
@@ -1264,7 +1264,7 @@ export default function NeedsPage() {
                   (mwAddingPocket ? (
                     <div className="rounded-xl bg-gray-900/50 p-3 space-y-2">
                       <p className="text-xs font-medium text-gray-400">
-                        Pilih kantong:
+                        Select pocket:
                       </p>
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {mwAvailablePockets.map((p) => {
@@ -1299,7 +1299,7 @@ export default function NeedsPage() {
                         onClick={() => setMwAddingPocket(false)}
                         className="w-full rounded-lg bg-gray-800 py-2 text-xs text-gray-400 hover:bg-gray-700 transition-colors"
                       >
-                        Batal
+                        Cancel
                       </button>
                     </div>
                   ) : (
@@ -1307,7 +1307,7 @@ export default function NeedsPage() {
                       onClick={() => setMwAddingPocket(true)}
                       className="w-full rounded-xl border border-dashed border-gray-600 py-3 text-sm text-gray-400 hover:border-gray-500 hover:text-gray-300 transition-colors"
                     >
-                      + Tambah Kantong
+                      + Add Pocket
                     </button>
                   ))}
 
@@ -1317,13 +1317,13 @@ export default function NeedsPage() {
                     disabled={!mwHasItems}
                     className="flex-1 rounded-xl bg-yellow-500 py-2.5 font-semibold text-white hover:bg-yellow-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    Lanjut
+                    Continue
                   </button>
                   <button
                     onClick={() => setShowMultiWithdraw(false)}
                     className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
                   >
-                    Batal
+                    Cancel
                   </button>
                 </div>
               </>
@@ -1332,10 +1332,10 @@ export default function NeedsPage() {
             {mwStep === "confirm" && (
               <>
                 <h3 className="text-lg font-bold text-white">
-                  Konfirmasi Penarikan
+                  Confirm Withdrawal
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Periksa rincian sebelum menarik saldo.
+                  Review details before withdrawing.
                 </p>
 
                 <div className="space-y-2">
@@ -1343,7 +1343,7 @@ export default function NeedsPage() {
                     <div className="flex items-center justify-between rounded-xl bg-gray-900/50 px-4 py-3">
                       <div>
                         <p className="font-medium text-white text-sm">
-                          Saldo Tersedia
+                          Available Balance
                         </p>
                         <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-500/20 text-emerald-400">
                           Pool
@@ -1402,7 +1402,7 @@ export default function NeedsPage() {
                 <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-4 py-3">
                   <div className="flex justify-between items-center">
                     <p className="text-sm font-medium text-gray-300">
-                      Total Penarikan
+                      Total Withdrawal
                     </p>
                     <div className="text-right">
                       <p className="text-lg font-bold text-yellow-400">
@@ -1417,8 +1417,8 @@ export default function NeedsPage() {
 
                 {mwPocketEntries.some((e) => e.pocket.tipe === "goal") && (
                   <div className="rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-400">
-                    Kantong goal yang targetnya tercapai akan otomatis dihapus
-                    setelah penarikan.
+                    Goal pockets that reach their target will be automatically deleted
+                    after withdrawal.
                   </div>
                 )}
 
@@ -1427,13 +1427,13 @@ export default function NeedsPage() {
                     onClick={handleMultiWithdraw}
                     className="flex-1 rounded-xl bg-yellow-500 py-2.5 font-semibold text-white hover:bg-yellow-600 transition-colors"
                   >
-                    Tarik {formatCurrency(mwTotalUSD, "USD")}
+                    Withdraw {formatCurrency(mwTotalUSD, "USD")}
                   </button>
                   <button
                     onClick={() => setMwStep("input")}
                     className="rounded-xl bg-gray-700 px-5 py-2.5 font-medium text-gray-300 hover:bg-gray-600 transition-colors"
                   >
-                    Kembali
+                    Back
                   </button>
                 </div>
               </>
@@ -1446,15 +1446,15 @@ export default function NeedsPage() {
       {pockets.length > 0 && (
         <div className="rounded-2xl bg-gray-800 p-5 shadow-lg">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-            Ringkasan
+            Summary
           </h2>
           <div className="space-y-2">
             <div className="flex justify-between text-gray-300">
-              <span>Total Kantong</span>
+              <span>Total Pockets</span>
               <span className="font-medium text-white">{pockets.length}</span>
             </div>
             <div className="flex justify-between text-gray-300">
-              <span>Permanen</span>
+              <span>Permanent</span>
               <span className="font-medium text-blue-400">
                 {pockets.filter((p) => p.tipe === "permanen").length}
               </span>
@@ -1467,13 +1467,13 @@ export default function NeedsPage() {
             </div>
             <div className="border-t border-gray-700 pt-2 mt-2">
               <div className="flex justify-between text-gray-300">
-                <span>Total di Kantong</span>
+                <span>Total in Pockets</span>
                 <span className="font-medium text-white">
                   {formatCurrency(totalPocketSaldoUSD, "USD")}
                 </span>
               </div>
               <div className="flex justify-between text-gray-300 mt-1">
-                <span>Saldo Tersedia</span>
+                <span>Available Balance</span>
                 <span className="font-bold text-emerald-400">
                   {formatCurrency(Math.max(0, freeBalanceUSD), "USD")}
                 </span>
